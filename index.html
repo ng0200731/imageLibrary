@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v0.6.0</span>
+          <span class="version">v0.7.0</span>
       </div>
 
       <div class="sidebar__footer">
@@ -82,12 +82,8 @@
     };
 
     function navigateTo(pageName) {
-        // Hide all pages
         Object.values(pages).forEach(page => page.classList.add('is-hidden'));
-        // Deactivate all nav links
         document.querySelectorAll('.menu__item').forEach(link => link.classList.remove('is-active'));
-
-        // Show target page and activate link
         pages[pageName].classList.remove('is-hidden');
         navLinks[pageName].classList.add('is-active');
     }
@@ -100,14 +96,13 @@
     const previewArea = document.getElementById('preview-area');
     const previewGrid = document.getElementById('preview-grid');
     const clearAllButton = document.getElementById('clear-all');
+    const uploadArea = document.getElementById('upload-area');
 
     function handleFiles(files) {
         if (files.length === 0) return;
         previewArea.classList.remove('is-hidden');
-
         for (const file of files) {
             if (!file.type.startsWith('image/')) continue;
-
             const reader = new FileReader();
             reader.onload = (e) => {
                 const card = document.createElement('div');
@@ -128,8 +123,28 @@
     clearAllButton.addEventListener('click', () => {
         previewGrid.innerHTML = '';
         previewArea.classList.add('is-hidden');
-        fileInput.value = ''; // Reset the file input
+        fileInput.value = '';
     });
+
+    // --- Drag and Drop Logic ---
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, () => uploadArea.classList.add('is-dragover'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('is-dragover'), false);
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        handleFiles(e.dataTransfer.files);
+    }, false);
   </script>
 </body>
 </html>
