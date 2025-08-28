@@ -18,15 +18,14 @@
         <span>Image Library</span>
       </div>
       <nav class="menu">
-        <a class="menu__item is-active" href="#">Overview</a>
-        <a class="menu__item" href="#">Upload Image</a>
-        <a class="menu__item" href="#">Image Library</a>
-        <a class="menu__item" href="#">Tags</a>
-        <a class="menu__item" href="#">Settings</a>
+        <a id="nav-library" class="menu__item is-active" href="#">Image Library</a>
+        <a id="nav-upload" class="menu__item" href="#">Upload Image</a>
+        <a id="nav-tags" class="menu__item" href="#">Tags</a>
+        <a id="nav-settings" class="menu__item" href="#">Settings</a>
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v0.3.4</span>
+          <span class="version">v0.6.0</span>
       </div>
 
       <div class="sidebar__footer">
@@ -35,20 +34,103 @@
     </aside>
 
     <main class="content">
-      <header class="content__header">
-        <h1 class="title">Right Content</h1>
-      </header>
+      <!-- Image Library Page (Default) -->
+      <div id="page-library" class="page">
+        <header class="content__header">
+          <h1 class="title">Image Library</h1>
+        </header>
+        <section class="panel">
+          <p class="text">Your uploaded images will appear here.</p>
+        </section>
+      </div>
 
-      <section class="panel">
-        <h2 class="panel__title">Minimal layout</h2>
-        <p class="text">Black and white only. No icons. Pixel (1px) line style.</p>
-        <div class="grid grid--2">
-          <div class="card">Card A</div>
-          <div class="card">Card B</div>
-        </div>
-      </section>
+      <!-- Upload Image Page -->
+      <div id="page-upload" class="page is-hidden">
+          <header class="content__header">
+            <h1 class="title">Upload Images</h1>
+          </header>
+          <section class="panel">
+            <div id="upload-area" class="upload-area">
+              <p class="text">Browse, drag & drop, or paste images</p>
+              <input type="file" id="file-input" class="file-input" multiple />
+              <label for="file-input" class="button">Browse Files</label>
+            </div>
+            <div id="preview-area" class="preview-area is-hidden">
+                <div class="preview-header">
+                    <h2 class="panel__title">Selected Images</h2>
+                    <button id="clear-all" class="button" type="button">Clear All</button>
+                </div>
+                <div id="preview-grid" class="preview-grid"></div>
+            </div>
+            <div class="upload-actions">
+                <button class="button button--primary" type="button">Upload</button>
+            </div>
+          </section>
+      </div>
     </main>
   </div>
+
+  <script>
+    // --- Page Navigation ---
+    const navLinks = {
+        library: document.getElementById('nav-library'),
+        upload: document.getElementById('nav-upload'),
+    };
+    const pages = {
+        library: document.getElementById('page-library'),
+        upload: document.getElementById('page-upload'),
+    };
+
+    function navigateTo(pageName) {
+        // Hide all pages
+        Object.values(pages).forEach(page => page.classList.add('is-hidden'));
+        // Deactivate all nav links
+        document.querySelectorAll('.menu__item').forEach(link => link.classList.remove('is-active'));
+
+        // Show target page and activate link
+        pages[pageName].classList.remove('is-hidden');
+        navLinks[pageName].classList.add('is-active');
+    }
+
+    navLinks.library.addEventListener('click', (e) => { e.preventDefault(); navigateTo('library'); });
+    navLinks.upload.addEventListener('click', (e) => { e.preventDefault(); navigateTo('upload'); });
+
+    // --- Upload Page Logic ---
+    const fileInput = document.getElementById('file-input');
+    const previewArea = document.getElementById('preview-area');
+    const previewGrid = document.getElementById('preview-grid');
+    const clearAllButton = document.getElementById('clear-all');
+
+    function handleFiles(files) {
+        if (files.length === 0) return;
+        previewArea.classList.remove('is-hidden');
+
+        for (const file of files) {
+            if (!file.type.startsWith('image/')) continue;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const card = document.createElement('div');
+                card.className = 'preview-card';
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                card.appendChild(img);
+                previewGrid.appendChild(card);
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    fileInput.addEventListener('change', (event) => {
+        handleFiles(event.target.files);
+    });
+
+    clearAllButton.addEventListener('click', () => {
+        previewGrid.innerHTML = '';
+        previewArea.classList.add('is-hidden');
+        fileInput.value = ''; // Reset the file input
+    });
+  </script>
 </body>
 </html>
 
