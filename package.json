@@ -1,0 +1,12 @@
+{
+  "name": "image-lib",
+  "version": "0.3.3",
+  "description": "Image library with objective and subjective tagging.",
+  "private": true,
+  "scripts": {
+    "start": "http-server -c-1"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

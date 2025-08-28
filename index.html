@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Image Library — Minimal Shell</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="Main menu">
+      <div class="brand">
+        <div class="hamburger">
+          <div class="hamburger__line"></div>
+          <div class="hamburger__line"></div>
+          <div class="hamburger__line"></div>
+        </div>
+        <span>Image Library</span>
+      </div>
+      <nav class="menu">
+        <a class="menu__item is-active" href="#">Overview</a>
+        <a class="menu__item" href="#">Upload</a>
+        <a class="menu__item" href="#">Images</a>
+        <a class="menu__item" href="#">Tags</a>
+        <a class="menu__item" href="#">Settings</a>
+      </nav>
+
+      <div class="version-wrapper">
+          <span class="version">v0.3.3</span>
+      </div>
+
+      <div class="sidebar__footer">
+        <button class="button button--primary" type="button">Login</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="content__header">
+        <h1 class="title">Right Content</h1>
+      </header>
+
+      <section class="panel">
+        <h2 class="panel__title">Minimal layout</h2>
+        <p class="text">Black and white only. No icons. Pixel (1px) line style.</p>
+        <div class="grid grid--2">
+          <div class="card">Card A</div>
+          <div class="card">Card B</div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
+
