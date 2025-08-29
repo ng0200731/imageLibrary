@@ -340,6 +340,21 @@ body {
   .tag-panels { grid-template-columns: 1fr; }
 }
 
+/* Subjective chips inline with input */
+.subj-inline {
+  display: grid;
+  grid-template-columns: auto 1fr; /* input then chips */
+  align-items: start;
+  gap: 8px;
+}
+.subj-inline .hint { font-size: 10px; color: #000; }
+.subj-inline .chips { justify-content: flex-start; }
+.subj-inline .chips .chip { border-style: dashed; font-style: italic; }
+
+/* Chip selection (for delete) */
+.chip.is-selected { outline: 1px dotted #000; outline-offset: 2px; }
+
+
 
 .upload-actions {
     text-align: right;

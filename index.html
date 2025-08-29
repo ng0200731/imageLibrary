@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v1.1.0</span>
+          <span class="version">v1.2.0</span>
       </div>
 
       <div class="sidebar__footer">
@@ -93,13 +93,15 @@
               <div class="tag-panel tag-panel--subjective">
                 <div class="tag-panel__header is-subjective">SUBJECTIVE (FEELINGS)</div>
                 <div class="tag-panel__body">
-                  <label class="tag-input">
-                    vibe: <input id="subj-vibe" type="text" placeholder="cozy" />
-                  </label>
-                  <label class="tag-input">
-                    mood: <input id="subj-mood" type="text" placeholder="warm" />
-                  </label>
-                  <div id="subj-chips" class="chips"></div>
+                  <div class="subj-inline">
+                    <div>
+                      <label class="tag-input">Add feelings:
+                        <input id="subj-input" type="text" placeholder="type and press Enter/Tab" />
+                      </label>
+                      <div class="hint">Press Enter or Tab to add; Backspace removes last when empty</div>
+                    </div>
+                    <div id="subj-chips" class="chips"></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -147,6 +149,43 @@
                 card.className = 'preview-card';
                 const img = document.createElement('img');
                 img.src = e.target.result;
+
+    // --- Subjective input: add chips with Enter/Tab/Comma ---
+    const subjInput = document.getElementById('subj-input');
+    const subjChips = document.getElementById('subj-chips');
+
+    function addSubjChip(label) {
+        const text = (label || '').toLowerCase().trim();
+        if (!text) return;
+        // no duplicates
+        if ([...subjChips.querySelectorAll('.chip')].some(c => c.textContent === text)) return;
+        const chip = document.createElement('span');
+        chip.className = 'chip is-subjective';
+        chip.textContent = text;
+        chip.tabIndex = 0; // focusable for delete
+        chip.addEventListener('click', () => chip.classList.toggle('is-selected'));
+        subjChips.appendChild(chip);
+    }
+
+    function handleSubjCommit() {
+        const parts = subjInput.value.split(',');
+        parts.forEach(p => addSubjChip(p));
+        subjInput.value = '';
+    }
+
+    subjInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            handleSubjCommit();
+        } else if (e.key === ',' ) {
+            e.preventDefault();
+            handleSubjCommit();
+        } else if (e.key === 'Backspace' && subjInput.value === '') {
+            const chips = subjChips.querySelectorAll('.chip');
+            const last = chips[chips.length - 1];
+            if (last) subjChips.removeChild(last);
+        }
+    });
                 card.appendChild(img);
                 previewGrid.appendChild(card);
             };
