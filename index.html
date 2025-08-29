@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v1.2.0</span>
+          <span class="version">v1.2.3</span>
       </div>
 
       <div class="sidebar__footer">
@@ -147,8 +147,14 @@
             reader.onload = (e) => {
                 const card = document.createElement('div');
                 card.className = 'preview-card';
+                const del = document.createElement('button');
+                del.type = 'button';
+                del.className = 'delete-btn';
+                del.textContent = 'x';
+                del.addEventListener('click', () => card.remove());
                 const img = document.createElement('img');
                 img.src = e.target.result;
+                card.appendChild(del);
 
     // --- Subjective input: add chips with Enter/Tab/Comma ---
     const subjInput = document.getElementById('subj-input');
@@ -164,6 +170,12 @@
         chip.textContent = text;
         chip.tabIndex = 0; // focusable for delete
         chip.addEventListener('click', () => chip.classList.toggle('is-selected'));
+        const x = document.createElement('button');
+        x.type = 'button';
+        x.className = 'x';
+        x.textContent = 'x';
+        x.addEventListener('click', (ev) => { ev.stopPropagation(); chip.remove(); });
+        chip.appendChild(x);
         subjChips.appendChild(chip);
     }
 
