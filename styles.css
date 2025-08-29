@@ -299,6 +299,48 @@ body {
     display: block;
 }
 
+/* Layer 3 Tag Panels */
+.apply-scope {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #000;
+  padding-bottom: 8px;
+}
+.legend { margin-left: auto; font-size: 10px; font-style: italic; }
+
+.tag-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.tag-panel {
+  min-height: 160px;
+}
+.tag-panel__header {
+  padding: 6px 8px;
+  font-weight: 700;
+  font-size: 12px;
+}
+.tag-panel__header.is-objective { background: #fff; color: #000; border: 1px solid #000; border-bottom: none; }
+.tag-panel__header.is-subjective { background: #000; color: #fff; border: 1px dashed #000; border-bottom: none; }
+.tag-panel--objective { border: 1px solid #000; }
+.tag-panel--subjective { border: 1px dashed #000; }
+.tag-panel__body { padding: 8px; }
+
+.tag-input { display: block; margin-bottom: 8px; }
+.tag-input input { border: 1px solid #000; padding: 4px 6px; width: 200px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips .chip { padding: 2px 6px; border: 1px solid #000; }
+.chips .chip.is-subjective { border-style: dashed; font-style: italic; }
+
+@media (max-width: 900px) {
+  .tag-panels { grid-template-columns: 1fr; }
+}
+
+
 .upload-actions {
     text-align: right;
     margin-top: 16px;

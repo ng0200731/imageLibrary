@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v0.7.0</span>
+          <span class="version">v1.1.0</span>
       </div>
 
       <div class="sidebar__footer">
@@ -38,6 +38,7 @@
       <div id="page-library" class="page">
         <header class="content__header">
           <h1 class="title">Image Library</h1>
+          <div class="legend" style="margin-top:8px;">Solid = Objective, Dashed = Subjective</div>
         </header>
         <section class="panel">
           <p class="text">Your uploaded images will appear here.</p>
@@ -64,6 +65,43 @@
             </div>
             <div class="upload-actions">
                 <button class="button button--primary" type="button">Upload</button>
+            </div>
+          </section>
+
+          <!-- Layer 3: Tag panels -->
+          <section class="panel">
+            <div class="apply-scope">
+              Apply to: <button id="apply-all" class="button" type="button">All images</button>
+              <button id="apply-selected" class="button" type="button">Selected only</button>
+              <span class="legend">Solid = Objective, Dashed = Subjective</span>
+            </div>
+
+            <div class="tag-panels">
+              <div class="tag-panel tag-panel--objective">
+                <div class="tag-panel__header is-objective">OBJECTIVE (FACTS)</div>
+                <div class="tag-panel__body">
+                  <label class="tag-input">
+                    brand: <input id="obj-brand" type="text" placeholder="brand:nike" />
+                  </label>
+                  <label class="tag-input">
+                    color: <input id="obj-color" type="text" placeholder="color:red" />
+                  </label>
+                  <div id="obj-chips" class="chips"></div>
+                </div>
+              </div>
+
+              <div class="tag-panel tag-panel--subjective">
+                <div class="tag-panel__header is-subjective">SUBJECTIVE (FEELINGS)</div>
+                <div class="tag-panel__body">
+                  <label class="tag-input">
+                    vibe: <input id="subj-vibe" type="text" placeholder="cozy" />
+                  </label>
+                  <label class="tag-input">
+                    mood: <input id="subj-mood" type="text" placeholder="warm" />
+                  </label>
+                  <div id="subj-chips" class="chips"></div>
+                </div>
+              </div>
             </div>
           </section>
       </div>
@@ -133,18 +171,21 @@
             e.stopPropagation();
         }, false);
     });
-
     ['dragenter', 'dragover'].forEach(eventName => {
         uploadArea.addEventListener(eventName, () => uploadArea.classList.add('is-dragover'), false);
     });
-
     ['dragleave', 'drop'].forEach(eventName => {
         uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('is-dragover'), false);
     });
-
     uploadArea.addEventListener('drop', (e) => {
         handleFiles(e.dataTransfer.files);
     }, false);
+
+    // --- Paste Logic ---
+    window.addEventListener('paste', (e) => {
+        if (pages.upload.classList.contains('is-hidden')) return;
+        handleFiles(e.clipboardData.files);
+    });
   </script>
 </body>
 </html>
