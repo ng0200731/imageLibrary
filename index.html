@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v1.2.5</span>
+          <span class="version">v1.3.0</span>
       </div>
 
       <div class="sidebar__footer">
@@ -51,17 +51,17 @@
             <h1 class="title">Upload Images</h1>
           </header>
           <section class="panel">
-            <div id="upload-area" class="upload-area">
-              <p class="text">Browse, drag & drop, or paste images</p>
-              <input type="file" id="file-input" class="file-input" multiple />
-              <label for="file-input" class="button">Browse Files</label>
-            </div>
-            <div id="preview-area" class="preview-area is-hidden">
-                <div class="preview-header">
-                    <h2 class="panel__title">Selected Images</h2>
-                    <button id="clear-all" class="button" type="button">Clear All</button>
+            <div id="dropzone" class="upload-area">
+              <div class="preview-header">
+                <h2 class="panel__title">Selected Images</h2>
+                <div class="upload-actions">
+                  <input type="file" id="file-input" class="file-input" multiple />
+                  <label for="file-input" class="button">Browse Files</label>
+                  <button id="clear-all" class="button" type="button">Clear All</button>
                 </div>
-                <div id="preview-grid" class="preview-grid"></div>
+              </div>
+              <p class="text">Browse, drag & drop, or paste images</p>
+              <div id="preview-grid" class="preview-grid"></div>
             </div>
             <div class="upload-actions">
                 <button class="button button--primary" type="button">Upload</button>
@@ -133,14 +133,12 @@
 
     // --- Upload Page Logic ---
     const fileInput = document.getElementById('file-input');
-    const previewArea = document.getElementById('preview-area');
     const previewGrid = document.getElementById('preview-grid');
     const clearAllButton = document.getElementById('clear-all');
-    const uploadArea = document.getElementById('upload-area');
+    const dropzone = document.getElementById('dropzone');
 
     function handleFiles(files) {
         if (files.length === 0) return;
-        previewArea.classList.remove('is-hidden');
         for (const file of files) {
             if (!file.type.startsWith('image/')) continue;
             const reader = new FileReader();
@@ -217,18 +215,18 @@
 
     // --- Drag and Drop Logic ---
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        uploadArea.addEventListener(eventName, (e) => {
+        dropzone.addEventListener(eventName, (e) => {
             e.preventDefault();
             e.stopPropagation();
         }, false);
     });
     ['dragenter', 'dragover'].forEach(eventName => {
-        uploadArea.addEventListener(eventName, () => uploadArea.classList.add('is-dragover'), false);
+        dropzone.addEventListener(eventName, () => dropzone.classList.add('is-dragover'), false);
     });
     ['dragleave', 'drop'].forEach(eventName => {
-        uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('is-dragover'), false);
+        dropzone.addEventListener(eventName, () => dropzone.classList.remove('is-dragover'), false);
     });
-    uploadArea.addEventListener('drop', (e) => {
+    dropzone.addEventListener('drop', (e) => {
         handleFiles(e.dataTransfer.files);
     }, false);
 
@@ -236,6 +234,9 @@
     window.addEventListener('paste', (e) => {
         if (pages.upload.classList.contains('is-hidden')) return;
         handleFiles(e.clipboardData.files);
+        // Visual feedback on dropzone for paste
+        dropzone.classList.add('is-dragover');
+        setTimeout(() => dropzone.classList.remove('is-dragover'), 150);
     });
   </script>
 </body>

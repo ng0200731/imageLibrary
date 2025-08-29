@@ -251,6 +251,7 @@ body {
 
 .upload-area.is-dragover {
     background-color: #eee;
+    outline: 1px dashed #000;
 }
 
 .file-input {
