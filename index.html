@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v1.4.4</span>
+          <span class="version">v1.5.0</span>
       </div>
 
       <div class="sidebar__footer">
@@ -41,7 +41,10 @@
           <div class="legend" style="margin-top:8px;">Solid = Objective, Dashed = Subjective</div>
         </header>
         <section class="panel">
-          <p class="text">Your uploaded images will appear here.</p>
+          <div class="search-bar">
+            <input type="text" id="library-search-input" placeholder="Search by subjective tag...">
+          </div>
+          <div id="library-grid" class="preview-grid"></div>
         </section>
       </div>
 
@@ -64,7 +67,7 @@
               <div id="preview-grid" class="preview-grid"></div>
             </div>
             <div class="upload-actions">
-                <button class="button button--primary" type="button">Upload</button>
+                <button id="upload-button" class="button button--primary" type="button">Upload</button>
             </div>
           </section>
 
@@ -161,8 +164,11 @@
                 del.addEventListener('click', () => card.remove());
                 const img = document.createElement('img');
                 img.src = e.target.result;
-                const currentIndex = previewGrid.querySelectorAll('img').length;
-                img.addEventListener('click', () => openModal(currentIndex));
+                img.addEventListener('click', (event) => {
+                    const allImages = Array.from(previewGrid.querySelectorAll('img'));
+                    const clickedIndex = allImages.indexOf(event.target);
+                    openModal(clickedIndex);
+                });
                 card.appendChild(del);
 
 
@@ -301,6 +307,71 @@
         dropzone.classList.add('is-dragover');
         setTimeout(() => dropzone.classList.remove('is-dragover'), 150);
     });
+
+    // --- In-Memory Database and Upload Logic ---
+    const imageDatabase = [];
+    const uploadButton = document.getElementById('upload-button');
+
+    uploadButton.addEventListener('click', () => {
+        const images = Array.from(previewGrid.querySelectorAll('.preview-card img'));
+        const tags = Array.from(subjChips.querySelectorAll('.chip')).map(chip => chip.textContent);
+
+        if (images.length === 0) {
+            alert('Please select images to upload.');
+            return;
+        }
+
+        const imageDataWithTags = images.map(img => ({
+            src: img.src,
+            subjectiveTags: tags
+        }));
+
+        imageDatabase.push(...imageDataWithTags);
+        console.log('Updated Image Database:', imageDatabase);
+
+        // Clear UI
+        previewGrid.innerHTML = '';
+        subjChips.innerHTML = '';
+        fileInput.value = ''; // Reset file input
+
+        alert('Images and tags processed successfully!');
+    });
+
+    // --- Library Page Logic ---
+    const librarySearchInput = document.getElementById('library-search-input');
+    const libraryGrid = document.getElementById('library-grid');
+
+    function displayLibraryImages(searchTerm = '') {
+        libraryGrid.innerHTML = '';
+        const lowerCaseSearchTerm = searchTerm.toLowerCase();
+
+        const filteredImages = imageDatabase.filter(imageData => {
+            if (!lowerCaseSearchTerm) return true; // Show all if search is empty
+            return imageData.subjectiveTags.some(tag => tag.toLowerCase().includes(lowerCaseSearchTerm));
+        });
+
+        filteredImages.forEach(imageData => {
+            const card = document.createElement('div');
+            card.className = 'preview-card';
+            const img = document.createElement('img');
+            img.src = imageData.src;
+            card.appendChild(img);
+            libraryGrid.appendChild(card);
+        });
+    }
+
+    librarySearchInput.addEventListener('input', (e) => {
+        displayLibraryImages(e.target.value);
+    });
+
+    // Update navigateTo to refresh the library view
+    let originalNavigateTo = navigateTo;
+    navigateTo = (pageName) => {
+        originalNavigateTo(pageName);
+        if (pageName === 'library') {
+            displayLibraryImages(librarySearchInput.value);
+        }
+    };
   </script>
 </body>
 </html>

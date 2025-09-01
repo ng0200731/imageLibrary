@@ -459,3 +459,17 @@ body {
 .prev:hover, .next:hover {
   background-color: rgba(0,0,0,0.8); /* Keep a hover effect */
 }
+
+
+
+/* Library Search */
+.search-bar {
+  margin-bottom: 16px;
+}
+
+#library-search-input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #000;
+  font-size: 14px;
+}
