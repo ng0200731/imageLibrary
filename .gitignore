@@ -7,3 +7,8 @@
 
 # Augment files
 .augment
+
+
+# Backend dependencies & uploads
+/backend/node_modules
+/backend/uploads

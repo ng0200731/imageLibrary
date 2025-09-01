@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.0.9</span>
+          <span class="version">v2.1.0</span>
       </div>
 
       <div class="sidebar__footer">
@@ -117,6 +117,15 @@
     </main>
   </div>
 
+      .modal-content-text {
+        margin: auto;
+        padding: 20px;
+        background-color: #fff;
+        width: fit-content;
+        border-radius: 5px;
+      }
+
+
 
   <!-- Lightbox Modal -->
   <div id="lightbox-modal" class="modal is-hidden">
@@ -125,6 +134,14 @@
     <img class="modal-content" id="lightbox-image">
     <a class="next">&#10095;</a>
   </div>
+
+
+      <!-- Loading Overlay -->
+      <div id="loading-overlay" class="modal is-hidden">
+        <div class="modal-content-text">
+          Uploading... Please wait.
+        </div>
+      </div>
 
   <script>
     // --- Constants & State ---
@@ -338,30 +355,49 @@
         }
     });
 
+    const loadingOverlay = document.getElementById('loading-overlay');
+
     uploadButton.addEventListener('click', async () => {
         const tags = Array.from(subjChips.querySelectorAll('.chip')).map(chip => chip.textContent.replace(/x$/, '').trim());
         if (filesToUpload.length === 0) {
             return alert('Please select images to upload.');
         }
+
         const formData = new FormData();
         filesToUpload.forEach(file => {
             formData.append('images', file);
         });
         formData.append('tags', JSON.stringify(tags));
+
+        // Show loading state
+        uploadButton.disabled = true;
+        loadingOverlay.classList.remove('is-hidden');
+
         try {
             const response = await fetch(`${API_URL}/upload`, {
                 method: 'POST',
                 body: formData
             });
-            if (!response.ok) throw new Error('Upload failed');
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Upload failed: ${errorText}`);
+            }
+
             alert('Images uploaded successfully!');
+            // Clear UI on success
             previewGrid.innerHTML = '';
             subjChips.innerHTML = '';
             filesToUpload = [];
             fileInput.value = '';
         } catch (error) {
             console.error('Error uploading images:', error);
-            alert('An error occurred during upload.');
+            alert(`An error occurred during upload. Please try again. Details: ${error.message}`);
+            // On failure, do not clear the UI so the user can retry
+        } finally {
+            // Hide loading state
+            uploadButton.disabled = false;
+            loadingOverlay.classList.add('is-hidden');
         }
     });
 
