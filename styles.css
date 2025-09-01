@@ -443,6 +443,7 @@ body {
   transition: 0.6s ease;
   border-radius: 0 3px 3px 0;
   user-select: none;
+  background-color: red;
 }
 
 .prev {
@@ -456,5 +457,5 @@ body {
 }
 
 .prev:hover, .next:hover {
-  background-color: rgba(0,0,0,0.8);
+  background-color: rgba(0,0,0,0.8); /* Keep a hover effect */
 }
