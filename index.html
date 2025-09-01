@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v1.5.0</span>
+          <span class="version">v2.0.9</span>
       </div>
 
       <div class="sidebar__footer">
@@ -42,7 +42,11 @@
         </header>
         <section class="panel">
           <div class="search-bar">
-            <input type="text" id="library-search-input" placeholder="Search by subjective tag...">
+            <input type="text" id="library-search-input" placeholder="Enter tags separated by commas...">
+            <div class="search-options">
+              <label><input type="radio" name="search-mode" value="AND" checked> AND (all tags must match)</label>
+              <label><input type="radio" name="search-mode" value="OR"> OR (any tag can match)</label>
+            </div>
           </div>
           <div id="library-grid" class="preview-grid"></div>
         </section>
@@ -123,7 +127,8 @@
   </div>
 
   <script>
-    // --- Page Navigation ---
+    // --- Constants & State ---
+    const API_URL = 'http://localhost:3000';
     const navLinks = {
         library: document.getElementById('nav-library'),
         upload: document.getElementById('nav-upload'),
@@ -132,36 +137,72 @@
         library: document.getElementById('page-library'),
         upload: document.getElementById('page-upload'),
     };
+    const fileInput = document.getElementById('file-input');
+    const previewGrid = document.getElementById('preview-grid');
+    const clearAllButton = document.getElementById('clear-all');
+    const dropzone = document.getElementById('dropzone');
+    const subjInput = document.getElementById('subj-input');
+    const subjChips = document.getElementById('subj-chips');
+    const modal = document.getElementById('lightbox-modal');
+    const modalImg = document.getElementById('lightbox-image');
+    const closeModal = document.querySelector('.modal-close');
+    const prevButton = document.querySelector('.prev');
+    const nextButton = document.querySelector('.next');
+    const uploadButton = document.getElementById('upload-button');
+    const librarySearchInput = document.getElementById('library-search-input');
+    const libraryGrid = document.getElementById('library-grid');
+    const searchModeRadios = document.querySelectorAll('input[name="search-mode"]');
+
+    let filesToUpload = [];
+    let currentImageIndex = 0;
+    let imageSources = [];
+
+    // --- Function Definitions ---
+
+    async function displayLibraryImages() {
+        const searchTerm = librarySearchInput.value;
+        const searchMode = document.querySelector('input[name="search-mode"]:checked').value;
+        const searchTags = searchTerm.split(',').map(tag => tag.trim()).filter(tag => tag);
+
+        try {
+            const response = await fetch(`${API_URL}/images?tags=${searchTags.join(',')}&mode=${searchMode}`);
+            const images = await response.json();
+
+            libraryGrid.innerHTML = '';
+            images.forEach(image => {
+                const card = document.createElement('div');
+                card.className = 'preview-card';
+                const img = document.createElement('img');
+                img.src = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
+                card.appendChild(img);
+                libraryGrid.appendChild(card);
+            });
+        } catch (error) {
+            console.error('Error fetching images:', error);
+        }
+    }
 
     function navigateTo(pageName) {
         Object.values(pages).forEach(page => page.classList.add('is-hidden'));
         document.querySelectorAll('.menu__item').forEach(link => link.classList.remove('is-active'));
         pages[pageName].classList.remove('is-hidden');
         navLinks[pageName].classList.add('is-active');
+
+        if (pageName === 'library') {
+            displayLibraryImages();
+        }
     }
 
-    navLinks.library.addEventListener('click', (e) => { e.preventDefault(); navigateTo('library'); });
-    navLinks.upload.addEventListener('click', (e) => { e.preventDefault(); navigateTo('upload'); });
-
-    // --- Upload Page Logic ---
-    const fileInput = document.getElementById('file-input');
-    const previewGrid = document.getElementById('preview-grid');
-    const clearAllButton = document.getElementById('clear-all');
-    const dropzone = document.getElementById('dropzone');
-
     function handleFiles(files) {
-        if (files.length === 0) return;
         for (const file of files) {
             if (!file.type.startsWith('image/')) continue;
+            filesToUpload.push(file);
+
             const reader = new FileReader();
             reader.onload = (e) => {
                 const card = document.createElement('div');
                 card.className = 'preview-card';
-                const del = document.createElement('button');
-                del.type = 'button';
-                del.className = 'delete-btn';
-                del.textContent = 'x';
-                del.addEventListener('click', () => card.remove());
+
                 const img = document.createElement('img');
                 img.src = e.target.result;
                 img.addEventListener('click', (event) => {
@@ -169,9 +210,20 @@
                     const clickedIndex = allImages.indexOf(event.target);
                     openModal(clickedIndex);
                 });
+
+                const del = document.createElement('button');
+                del.type = 'button';
+                del.className = 'delete-btn';
+                del.textContent = 'x';
+                del.addEventListener('click', () => {
+                    const indexToRemove = filesToUpload.indexOf(file);
+                    if (indexToRemove > -1) {
+                        filesToUpload.splice(indexToRemove, 1);
+                    }
+                    card.remove();
+                });
+
                 card.appendChild(del);
-
-
                 card.appendChild(img);
                 previewGrid.appendChild(card);
             };
@@ -179,30 +231,14 @@
         }
     }
 
-    fileInput.addEventListener('change', (event) => {
-        handleFiles(event.target.files);
-    });
-
-    clearAllButton.addEventListener('click', () => {
-        previewGrid.innerHTML = '';
-        previewArea.classList.add('is-hidden');
-        fileInput.value = '';
-    });
-
-
-    // --- Subjective input: add chips with Enter/Tab/Comma ---
-    const subjInput = document.getElementById('subj-input');
-    const subjChips = document.getElementById('subj-chips');
-
     function addSubjChip(label) {
         const text = (label || '').toLowerCase().trim();
         if (!text) return;
-        // no duplicates
-        if ([...subjChips.querySelectorAll('.chip')].some(c => c.textContent === text)) return;
+        if ([...subjChips.querySelectorAll('.chip')].some(c => c.textContent.replace(/x$/, '').trim() === text)) return;
         const chip = document.createElement('span');
         chip.className = 'chip is-subjective';
         chip.textContent = text;
-        chip.tabIndex = 0; // focusable for delete
+        chip.tabIndex = 0;
         chip.addEventListener('click', () => chip.classList.toggle('is-selected'));
         const x = document.createElement('button');
         x.type = 'button';
@@ -219,11 +255,48 @@
         subjInput.value = '';
     }
 
+    function updateArrowVisibility() {
+        const totalImages = imageSources.length;
+        prevButton.style.display = (currentImageIndex > 0 && totalImages > 1) ? 'block' : 'none';
+        nextButton.style.display = (currentImageIndex < totalImages - 1 && totalImages > 1) ? 'block' : 'none';
+    }
+
+    function openModal(index) {
+        currentImageIndex = index;
+        imageSources = Array.from(previewGrid.querySelectorAll('img')).map(img => img.src);
+        modalImg.src = imageSources[currentImageIndex];
+        modal.classList.remove('is-hidden');
+        updateArrowVisibility();
+    }
+
+    function showImage(index) {
+        if (index >= imageSources.length || index < 0) return;
+        currentImageIndex = index;
+        modalImg.src = imageSources[currentImageIndex];
+        updateArrowVisibility();
+    }
+
+    function hideModal() {
+        modal.classList.add('is-hidden');
+    }
+
+    // --- Event Listeners ---
+
+    navLinks.library.addEventListener('click', (e) => { e.preventDefault(); navigateTo('library'); });
+    navLinks.upload.addEventListener('click', (e) => { e.preventDefault(); navigateTo('upload'); });
+
+    fileInput.addEventListener('change', (event) => {
+        handleFiles(event.target.files);
+    });
+
+    clearAllButton.addEventListener('click', () => {
+        previewGrid.innerHTML = '';
+        filesToUpload = [];
+        fileInput.value = '';
+    });
+
     subjInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === 'Tab') {
-            e.preventDefault();
-            handleSubjCommit();
-        } else if (e.key === ',' ) {
+        if (e.key === 'Enter' || e.key === 'Tab' || e.key === ',') {
             e.preventDefault();
             handleSubjCommit();
         } else if (e.key === 'Backspace' && subjInput.value === '') {
@@ -233,7 +306,6 @@
         }
     });
 
-    // --- Drag and Drop Logic ---
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropzone.addEventListener(eventName, (e) => {
             e.preventDefault();
@@ -250,49 +322,15 @@
         handleFiles(e.dataTransfer.files);
     }, false);
 
-    // --- Paste Logic ---
-
-    // --- Lightbox Modal Logic ---
-    const modal = document.getElementById('lightbox-modal');
-    const modalImg = document.getElementById('lightbox-image');
-    const closeModal = document.querySelector('.modal-close');
-
-    let currentImageIndex = 0;
-    let imageSources = [];
-
-    const prevButton = document.querySelector('.prev');
-    const nextButton = document.querySelector('.next');
-
-    function updateArrowVisibility() {
-        const totalImages = imageSources.length;
-        prevButton.style.display = (currentImageIndex > 0 && totalImages > 1) ? 'block' : 'none';
-        nextButton.style.display = (currentImageIndex < totalImages - 1 && totalImages > 1) ? 'block' : 'none';
-    }
-
-    function openModal(index) {
-        currentImageIndex = index;
-        imageSources = Array.from(previewGrid.querySelectorAll('img')).map(img => img.src);
-        modalImg.src = imageSources[currentImageIndex];
-        modal.classList.remove('is-hidden');
-        updateArrowVisibility();
-    }
-
-    function showImage(index) {
-        if (index >= imageSources.length || index < 0) {
-            return; // Do not loop
-        }
-        currentImageIndex = index;
-        modalImg.src = imageSources[currentImageIndex];
-        updateArrowVisibility();
-    }
+    window.addEventListener('paste', (e) => {
+        if (pages.upload.classList.contains('is-hidden')) return;
+        handleFiles(e.clipboardData.files);
+        dropzone.classList.add('is-dragover');
+        setTimeout(() => dropzone.classList.remove('is-dragover'), 150);
+    });
 
     prevButton.addEventListener('click', () => showImage(currentImageIndex - 1));
     nextButton.addEventListener('click', () => showImage(currentImageIndex + 1));
-
-    function hideModal() {
-        modal.classList.add('is-hidden');
-    }
-
     closeModal.addEventListener('click', hideModal);
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
@@ -300,78 +338,37 @@
         }
     });
 
-    window.addEventListener('paste', (e) => {
-        if (pages.upload.classList.contains('is-hidden')) return;
-        handleFiles(e.clipboardData.files);
-        // Visual feedback on dropzone for paste
-        dropzone.classList.add('is-dragover');
-        setTimeout(() => dropzone.classList.remove('is-dragover'), 150);
-    });
-
-    // --- In-Memory Database and Upload Logic ---
-    const imageDatabase = [];
-    const uploadButton = document.getElementById('upload-button');
-
-    uploadButton.addEventListener('click', () => {
-        const images = Array.from(previewGrid.querySelectorAll('.preview-card img'));
-        const tags = Array.from(subjChips.querySelectorAll('.chip')).map(chip => chip.textContent);
-
-        if (images.length === 0) {
-            alert('Please select images to upload.');
-            return;
+    uploadButton.addEventListener('click', async () => {
+        const tags = Array.from(subjChips.querySelectorAll('.chip')).map(chip => chip.textContent.replace(/x$/, '').trim());
+        if (filesToUpload.length === 0) {
+            return alert('Please select images to upload.');
         }
-
-        const imageDataWithTags = images.map(img => ({
-            src: img.src,
-            subjectiveTags: tags
-        }));
-
-        imageDatabase.push(...imageDataWithTags);
-        console.log('Updated Image Database:', imageDatabase);
-
-        // Clear UI
-        previewGrid.innerHTML = '';
-        subjChips.innerHTML = '';
-        fileInput.value = ''; // Reset file input
-
-        alert('Images and tags processed successfully!');
-    });
-
-    // --- Library Page Logic ---
-    const librarySearchInput = document.getElementById('library-search-input');
-    const libraryGrid = document.getElementById('library-grid');
-
-    function displayLibraryImages(searchTerm = '') {
-        libraryGrid.innerHTML = '';
-        const lowerCaseSearchTerm = searchTerm.toLowerCase();
-
-        const filteredImages = imageDatabase.filter(imageData => {
-            if (!lowerCaseSearchTerm) return true; // Show all if search is empty
-            return imageData.subjectiveTags.some(tag => tag.toLowerCase().includes(lowerCaseSearchTerm));
+        const formData = new FormData();
+        filesToUpload.forEach(file => {
+            formData.append('images', file);
         });
-
-        filteredImages.forEach(imageData => {
-            const card = document.createElement('div');
-            card.className = 'preview-card';
-            const img = document.createElement('img');
-            img.src = imageData.src;
-            card.appendChild(img);
-            libraryGrid.appendChild(card);
-        });
-    }
-
-    librarySearchInput.addEventListener('input', (e) => {
-        displayLibraryImages(e.target.value);
-    });
-
-    // Update navigateTo to refresh the library view
-    let originalNavigateTo = navigateTo;
-    navigateTo = (pageName) => {
-        originalNavigateTo(pageName);
-        if (pageName === 'library') {
-            displayLibraryImages(librarySearchInput.value);
+        formData.append('tags', JSON.stringify(tags));
+        try {
+            const response = await fetch(`${API_URL}/upload`, {
+                method: 'POST',
+                body: formData
+            });
+            if (!response.ok) throw new Error('Upload failed');
+            alert('Images uploaded successfully!');
+            previewGrid.innerHTML = '';
+            subjChips.innerHTML = '';
+            filesToUpload = [];
+            fileInput.value = '';
+        } catch (error) {
+            console.error('Error uploading images:', error);
+            alert('An error occurred during upload.');
         }
-    };
+    });
+
+    librarySearchInput.addEventListener('input', displayLibraryImages);
+    searchModeRadios.forEach(radio => radio.addEventListener('change', displayLibraryImages));
+
+
   </script>
 </body>
 </html>
