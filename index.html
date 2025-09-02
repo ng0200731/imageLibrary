@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.2.6</span>
+          <span class="version">v2.2.8</span>
       </div>
 
       <div class="sidebar__footer">
@@ -196,6 +196,7 @@
     let filesToUpload = [];
     let currentImageIndex = 0;
     let imageSources = [];
+    let libraryImages = []; // Store current library images for lightbox navigation
 
     // --- Function Definitions ---
 
@@ -209,11 +210,29 @@
             const images = await response.json();
 
             libraryGrid.innerHTML = '';
-            images.forEach(image => {
+            libraryImages = []; // Reset library images array
+
+            images.forEach((image, index) => {
                 const card = document.createElement('div');
-                card.className = 'preview-card';
+                card.className = 'preview-card library-card';
                 const img = document.createElement('img');
-                img.src = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
+                const imageSrc = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
+                img.src = imageSrc;
+
+                // Store image data for lightbox navigation
+                libraryImages.push({
+                    src: imageSrc,
+                    index: index
+                });
+
+                // Add click event listener for lightbox
+                img.addEventListener('click', () => {
+                    openLibraryLightbox(index);
+                });
+
+                // Add cursor pointer style
+                img.style.cursor = 'pointer';
+
                 card.appendChild(img);
                 libraryGrid.appendChild(card);
             });
@@ -325,6 +344,23 @@
         modal.classList.add('is-hidden');
     }
 
+    // --- Library Lightbox Functions ---
+
+    function openLibraryLightbox(index) {
+        currentImageIndex = index;
+        imageSources = libraryImages.map(img => img.src);
+        modalImg.src = imageSources[currentImageIndex];
+        modal.classList.remove('is-hidden');
+        updateArrowVisibility();
+    }
+
+    function showLibraryImage(index) {
+        if (index >= imageSources.length || index < 0) return;
+        currentImageIndex = index;
+        modalImg.src = imageSources[currentImageIndex];
+        updateArrowVisibility();
+    }
+
     // --- Event Listeners ---
 
     navLinks.library.addEventListener('click', (e) => { e.preventDefault(); navigateTo('library'); });
@@ -374,11 +410,33 @@
         setTimeout(() => dropzone.classList.remove('is-dragover'), 150);
     });
 
-    prevButton.addEventListener('click', () => showImage(currentImageIndex - 1));
-    nextButton.addEventListener('click', () => showImage(currentImageIndex + 1));
+    prevButton.addEventListener('click', () => {
+        if (libraryImages.length > 0) {
+            showLibraryImage(currentImageIndex - 1);
+        } else {
+            showImage(currentImageIndex - 1);
+        }
+    });
+
+    nextButton.addEventListener('click', () => {
+        if (libraryImages.length > 0) {
+            showLibraryImage(currentImageIndex + 1);
+        } else {
+            showImage(currentImageIndex + 1);
+        }
+    });
+
     closeModal.addEventListener('click', hideModal);
+
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
+            hideModal();
+        }
+    });
+
+    // Add keyboard support for Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.classList.contains('is-hidden')) {
             hideModal();
         }
     });

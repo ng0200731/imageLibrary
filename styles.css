@@ -304,16 +304,20 @@ body {
 
 .preview-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    grid-template-columns: repeat(auto-fill, 150px);
     gap: 8px;
     border: 1px solid #000;
     padding: 8px;
     min-height: 120px;
+    justify-content: center;
 }
 
 .preview-card {
     border: 1px solid #000;
     position: relative;
+    width: 150px;
+    height: 150px;
+    overflow: hidden;
 }
 
 .preview-card img {
@@ -321,6 +325,16 @@ body {
     height: 100%;
     object-fit: cover;
     display: block;
+}
+
+/* Library card hover effect for clickable images */
+.library-card img {
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.library-card img:hover {
+    transform: scale(1.05);
+    opacity: 0.8;
 }
 
 /* Preview card delete button */
@@ -430,6 +444,8 @@ body {
   display: block;
   max-width: 90%;
   max-height: 90%;
+  border: 2px solid #fff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .modal-close {
@@ -458,29 +474,31 @@ body {
   position: absolute;
   top: 50%;
   width: auto;
-  padding: 16px;
+  padding: 16px 20px;
   margin-top: -22px;
-  color: white;
+  color: #fff;
   font-weight: bold;
-  font-size: 20px;
-  transition: 0.6s ease;
-  border-radius: 0 3px 3px 0;
+  font-size: 24px;
+  transition: all 0.3s ease;
   user-select: none;
-  background-color: red;
+  background-color: rgba(0, 0, 0, 0.7);
+  border: 2px solid #fff;
 }
 
 .prev {
-  left: 0;
-  border-radius: 0 3px 3px 0;
+  left: 20px;
+  border-radius: 0 8px 8px 0;
 }
 
 .next {
-  right: 0;
-  border-radius: 3px 0 0 3px;
+  right: 20px;
+  border-radius: 8px 0 0 8px;
 }
 
 .prev:hover, .next:hover {
-  background-color: rgba(0,0,0,0.8); /* Keep a hover effect */
+  background-color: #fff;
+  color: #000;
+  transform: scale(1.1);
 }
 
 
@@ -508,4 +526,27 @@ body {
 
 .search-options label {
   cursor: pointer;
+}
+
+/* Responsive grid adjustments */
+@media (max-width: 480px) {
+  .preview-grid {
+    grid-template-columns: repeat(auto-fill, 120px);
+  }
+
+  .preview-card {
+    width: 120px;
+    height: 120px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .preview-grid {
+    grid-template-columns: repeat(auto-fill, 180px);
+  }
+
+  .preview-card {
+    width: 180px;
+    height: 180px;
+  }
 }
