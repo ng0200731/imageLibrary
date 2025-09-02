@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.1.0</span>
+          <span class="version">v2.2.5</span>
       </div>
 
       <div class="sidebar__footer">
@@ -117,13 +117,7 @@
     </main>
   </div>
 
-      .modal-content-text {
-        margin: auto;
-        padding: 20px;
-        background-color: #fff;
-        width: fit-content;
-        border-radius: 5px;
-      }
+
 
 
 
@@ -134,6 +128,18 @@
     <img class="modal-content" id="lightbox-image">
     <a class="next">&#10095;</a>
   </div>
+
+      <!-- Confirmation Dialog -->
+      <div id="confirm-modal" class="modal is-hidden">
+        <div class="modal-content-text">
+          <p>Upload Successful! What would you like to do next?</p>
+          <div class="modal-buttons">
+            <button id="upload-more-btn" class="button">Upload More</button>
+            <button id="go-to-library-btn" class="button is-primary">Go to Library</button>
+          </div>
+        </div>
+      </div>
+
 
 
       <!-- Loading Overlay -->
@@ -357,6 +363,29 @@
 
     const loadingOverlay = document.getElementById('loading-overlay');
 
+    const confirmModal = document.getElementById('confirm-modal');
+    const uploadMoreBtn = document.getElementById('upload-more-btn');
+    const goToLibraryBtn = document.getElementById('go-to-library-btn');
+
+    function clearUploadUI() {
+        previewGrid.innerHTML = '';
+        subjChips.innerHTML = '';
+        filesToUpload = [];
+        fileInput.value = '';
+        uploadButton.disabled = false; // Always re-enable the button
+    }
+
+    uploadMoreBtn.addEventListener('click', () => {
+        confirmModal.classList.add('is-hidden');
+        clearUploadUI();
+    });
+
+    goToLibraryBtn.addEventListener('click', () => {
+        confirmModal.classList.add('is-hidden');
+        clearUploadUI();
+        navigateTo('library');
+    });
+
     uploadButton.addEventListener('click', async () => {
         const tags = Array.from(subjChips.querySelectorAll('.chip')).map(chip => chip.textContent.replace(/x$/, '').trim());
         if (filesToUpload.length === 0) {
@@ -369,7 +398,6 @@
         });
         formData.append('tags', JSON.stringify(tags));
 
-        // Show loading state
         uploadButton.disabled = true;
         loadingOverlay.classList.remove('is-hidden');
 
@@ -379,25 +407,21 @@
                 body: formData
             });
 
+            loadingOverlay.classList.add('is-hidden');
+
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`Upload failed: ${errorText}`);
             }
 
-            alert('Images uploaded successfully!');
-            // Clear UI on success
-            previewGrid.innerHTML = '';
-            subjChips.innerHTML = '';
-            filesToUpload = [];
-            fileInput.value = '';
+            confirmModal.classList.remove('is-hidden');
+
+
         } catch (error) {
             console.error('Error uploading images:', error);
             alert(`An error occurred during upload. Please try again. Details: ${error.message}`);
-            // On failure, do not clear the UI so the user can retry
-        } finally {
-            // Hide loading state
-            uploadButton.disabled = false;
             loadingOverlay.classList.add('is-hidden');
+            uploadButton.disabled = false;
         }
     });
 
