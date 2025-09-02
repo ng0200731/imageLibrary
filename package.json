@@ -1,13 +1,13 @@
 {
   "name": "image-lib",
-  "version": "2.2.5",
+  "version": "2.2.6",
   "description": "Image library with objective and subjective tagging.",
   "private": true,
   "scripts": {
-    "start": "serve -l 8080"
+    "start": "live-server --ignore=backend/uploads"
   },
-  "devDependencies": {
-    "serve": "^14.0.1"
+  "dependencies": {
+    "http-server": "^14.1.1"
   },
   "devDependencies": {
     "live-server": "^1.2.2"

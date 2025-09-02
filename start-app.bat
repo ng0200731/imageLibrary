@@ -37,5 +37,5 @@ echo =                 Starting Frontend Server...                  =
 echo =================================================================
 echo.
 
-call npm start
+live-server --ignore=backend
 

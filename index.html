@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.2.5</span>
+          <span class="version">v2.2.6</span>
       </div>
 
       <div class="sidebar__footer">
@@ -117,7 +117,24 @@
     </main>
   </div>
 
+      .modal-content-text {
+        margin: auto;
+        padding: 20px;
+        background-color: #fff;
+        width: fit-content;
+        border-radius: 5px;
+      }
 
+
+      .modal-buttons {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 20px;
+      }
+
+      .modal-buttons .button {
+        margin-left: 10px;
+      }
 
 
 
@@ -206,6 +223,11 @@
     }
 
     function navigateTo(pageName) {
+        const confirmModal = document.getElementById('confirm-modal');
+        // Do not navigate if the confirmation modal is visible
+        if (confirmModal && !confirmModal.classList.contains('is-hidden')) {
+            return;
+        }
         Object.values(pages).forEach(page => page.classList.add('is-hidden'));
         document.querySelectorAll('.menu__item').forEach(link => link.classList.remove('is-active'));
         pages[pageName].classList.remove('is-hidden');
@@ -362,7 +384,6 @@
     });
 
     const loadingOverlay = document.getElementById('loading-overlay');
-
     const confirmModal = document.getElementById('confirm-modal');
     const uploadMoreBtn = document.getElementById('upload-more-btn');
     const goToLibraryBtn = document.getElementById('go-to-library-btn');
@@ -372,22 +393,24 @@
         subjChips.innerHTML = '';
         filesToUpload = [];
         fileInput.value = '';
-        uploadButton.disabled = false; // Always re-enable the button
     }
 
     uploadMoreBtn.addEventListener('click', () => {
         confirmModal.classList.add('is-hidden');
         clearUploadUI();
+        uploadButton.disabled = false; // Re-enable
     });
 
     goToLibraryBtn.addEventListener('click', () => {
         confirmModal.classList.add('is-hidden');
         clearUploadUI();
+        uploadButton.disabled = false; // Re-enable
         navigateTo('library');
     });
 
     uploadButton.addEventListener('click', async () => {
         const tags = Array.from(subjChips.querySelectorAll('.chip')).map(chip => chip.textContent.replace(/x$/, '').trim());
+
         if (filesToUpload.length === 0) {
             return alert('Please select images to upload.');
         }
@@ -414,8 +437,8 @@
                 throw new Error(`Upload failed: ${errorText}`);
             }
 
+            // On success, show the custom confirmation dialog
             confirmModal.classList.remove('is-hidden');
-
 
         } catch (error) {
             console.error('Error uploading images:', error);

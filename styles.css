@@ -27,11 +27,20 @@ body {
   overflow: hidden;
   width: 40px;
   flex-shrink: 0;
-  position: relative; /* Positioning context for version */
+  position: fixed; /* Fixed positioning to stay independent of content scroll */
+  top: 0;
+  left: 0;
+  height: 100vh; /* Full viewport height */
+  z-index: 100; /* Ensure it stays above content */
 }
 
 .sidebar:hover {
   width: 12vw; /* Expand to 12% of viewport width */
+}
+
+/* Adjust content margin when sidebar is hovered */
+.sidebar:hover + .content {
+  margin-left: 12vw; /* Match expanded sidebar width */
 }
 
 /* Hide text content by default, show hamburger and version */
@@ -163,6 +172,8 @@ body {
   color: #000;
   min-width: 0;
   flex-grow: 1;
+  margin-left: 40px; /* Account for fixed sidebar width */
+  transition: margin-left 0.3s ease-in-out; /* Smooth transition when sidebar expands */
 }
 
 .content__header {
@@ -216,14 +227,26 @@ body {
     flex-direction: column;
   }
   .sidebar {
+    position: fixed; /* Keep fixed positioning on mobile */
+    top: 0;
+    left: 0;
+    width: 100%; /* Full width on mobile */
+    height: auto; /* Auto height for mobile */
     border-right: none;
     border-bottom: 1px solid #000;
     background: #000;
-    width: 100%; /* Full width on mobile */
     overflow: visible; /* Show menu */
+    z-index: 100;
   }
   .sidebar:hover {
       width: 100%; /* No hover effect on mobile */
+  }
+  .sidebar:hover + .content {
+    margin-left: 0; /* No margin adjustment on mobile */
+  }
+  .content {
+    margin-left: 0; /* No left margin on mobile */
+    margin-top: 60px; /* Add top margin to account for fixed sidebar */
   }
   .brand, .menu, .sidebar__footer {
       opacity: 1;
@@ -485,61 +508,4 @@ body {
 
 .search-options label {
   cursor: pointer;
-}
-
-
-/* Confirmation Modal Styles */
-.modal-content-text {
-  margin: auto;
-  padding: 24px;
-  background-color: #fff;
-  border: 2px solid #000;
-  width: fit-content;
-  min-width: 320px;
-  max-width: 90vw;
-  text-align: center;
-}
-
-.modal-content-text p {
-  margin: 0 0 24px 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #000;
-}
-
-.modal-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 24px;
-}
-
-.modal-buttons .button {
-  padding: 12px 24px;
-  font-size: 14px;
-  font-weight: 600;
-  min-width: 120px;
-  border: 2px solid #000;
-  background: #fff;
-  color: #000;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.modal-buttons .button:hover,
-.modal-buttons .button:focus {
-  background: #000;
-  color: #fff;
-  outline: none;
-}
-
-.modal-buttons .button.is-primary {
-  background: #000;
-  color: #fff;
-}
-
-.modal-buttons .button.is-primary:hover,
-.modal-buttons .button.is-primary:focus {
-  background: #fff;
-  color: #000;
 }
