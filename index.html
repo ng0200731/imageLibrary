@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.4.6" />
+  <link rel="stylesheet" href="styles.css?v=2.4.7" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.4.6</span>
+          <span class="version">v2.4.7</span>
       </div>
 
       <div class="sidebar__footer">
@@ -741,27 +741,49 @@
             const projectCard = document.createElement('div');
             projectCard.className = 'project-card';
 
-            const projectHeader = document.createElement('div');
-            projectHeader.className = 'project-header';
+            // Project card header with title and metadata
+            const cardHeader = document.createElement('div');
+            cardHeader.className = 'project-card-header';
+
+            const titleSection = document.createElement('div');
+            titleSection.className = 'project-title-section';
 
             const projectTitle = document.createElement('h3');
+            projectTitle.className = 'project-title';
             projectTitle.textContent = project.name;
 
-            const projectInfo = document.createElement('span');
-            projectInfo.className = 'project-info';
-            projectInfo.textContent = `${project.images.length} images • Created ${new Date(project.createdAt).toLocaleDateString()}`;
+            const projectMeta = document.createElement('div');
+            projectMeta.className = 'project-meta';
+
+            const imageCount = document.createElement('span');
+            imageCount.className = 'project-image-count';
+            imageCount.textContent = `${project.images.length} images`;
+
+            const createdDate = document.createElement('span');
+            createdDate.className = 'project-created-date';
+            const date = new Date(project.createdAt);
+            createdDate.textContent = `Created ${date.toLocaleDateString()} at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+
+            projectMeta.appendChild(imageCount);
+            projectMeta.appendChild(createdDate);
+            titleSection.appendChild(projectTitle);
+            titleSection.appendChild(projectMeta);
+
+            const actionSection = document.createElement('div');
+            actionSection.className = 'project-actions';
 
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'button delete-project-btn';
             deleteBtn.textContent = 'Delete';
             deleteBtn.addEventListener('click', () => deleteProject(project.id));
 
-            projectHeader.appendChild(projectTitle);
-            projectHeader.appendChild(projectInfo);
-            projectHeader.appendChild(deleteBtn);
+            actionSection.appendChild(deleteBtn);
+            cardHeader.appendChild(titleSection);
+            cardHeader.appendChild(actionSection);
 
-            const projectImages = document.createElement('div');
-            projectImages.className = 'project-images preview-grid';
+            // Project images preview (first few images)
+            const projectPreview = document.createElement('div');
+            projectPreview.className = 'project-preview';
 
             // Get image data for this project
             try {
@@ -769,20 +791,28 @@
                 const allImages = await response.json();
                 const projectImageData = allImages.filter(img => project.images.includes(img.id));
 
-                projectImageData.forEach(image => {
-                    const card = document.createElement('div');
-                    card.className = 'preview-card';
-                    const img = document.createElement('img');
-                    img.src = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
-                    card.appendChild(img);
-                    projectImages.appendChild(card);
+                // Show first 6 images as preview
+                const previewImages = projectImageData.slice(0, 6);
+                previewImages.forEach(image => {
+                    const previewImg = document.createElement('img');
+                    previewImg.className = 'project-preview-image';
+                    previewImg.src = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
+                    projectPreview.appendChild(previewImg);
                 });
+
+                // Add "more" indicator if there are more images
+                if (projectImageData.length > 6) {
+                    const moreIndicator = document.createElement('div');
+                    moreIndicator.className = 'project-more-indicator';
+                    moreIndicator.textContent = `+${projectImageData.length - 6} more`;
+                    projectPreview.appendChild(moreIndicator);
+                }
             } catch (error) {
                 console.error('Error loading project images:', error);
             }
 
-            projectCard.appendChild(projectHeader);
-            projectCard.appendChild(projectImages);
+            projectCard.appendChild(cardHeader);
+            projectCard.appendChild(projectPreview);
             projectList.appendChild(projectCard);
         }
     }
