@@ -77,36 +77,53 @@ app.get('/images', (req, res) => {
     const mode = req.query.mode || 'OR';
 
     try {
+        let images;
+
         if (tags.length === 0) {
-            const rows = db.prepare('SELECT * FROM images').all();
-            return res.json(rows);
+            images = db.prepare('SELECT * FROM images').all();
+        } else {
+            const placeholders = tags.map(() => '?').join(',');
+            let query;
+            let params;
+
+            if (mode.toUpperCase() === 'AND') {
+                query = `
+                    SELECT i.* FROM images i
+                    JOIN image_tags it ON i.id = it.image_id
+                    JOIN tags t ON it.tag_id = t.id
+                    WHERE t.name IN (${placeholders})
+                    GROUP BY i.id
+                    HAVING COUNT(DISTINCT t.name) = ?
+                `;
+                params = [...tags, tags.length];
+            } else { // OR
+                query = `
+                    SELECT DISTINCT i.* FROM images i
+                    JOIN image_tags it ON i.id = it.image_id
+                    JOIN tags t ON it.tag_id = t.id
+                    WHERE t.name IN (${placeholders})
+                `;
+                params = tags;
+            }
+            images = db.prepare(query).all(params);
         }
 
-        const placeholders = tags.map(() => '?').join(',');
-        let query;
-        let params;
+        // Get tags for each image
+        const getImageTags = db.prepare(`
+            SELECT t.name FROM tags t
+            JOIN image_tags it ON t.id = it.tag_id
+            WHERE it.image_id = ?
+        `);
 
-        if (mode.toUpperCase() === 'AND') {
-            query = `
-                SELECT i.* FROM images i
-                JOIN image_tags it ON i.id = it.image_id
-                JOIN tags t ON it.tag_id = t.id
-                WHERE t.name IN (${placeholders})
-                GROUP BY i.id
-                HAVING COUNT(DISTINCT t.name) = ?
-            `;
-            params = [...tags, tags.length];
-        } else { // OR
-            query = `
-                SELECT DISTINCT i.* FROM images i
-                JOIN image_tags it ON i.id = it.image_id
-                JOIN tags t ON it.tag_id = t.id
-                WHERE t.name IN (${placeholders})
-            `;
-            params = tags;
-        }
-        const rows = db.prepare(query).all(params);
-        res.json(rows);
+        const imagesWithTags = images.map(image => {
+            const imageTags = getImageTags.all(image.id);
+            return {
+                ...image,
+                tags: imageTags.map(tag => tag.name)
+            };
+        });
+
+        res.json(imagesWithTags);
     } catch (err) {
         console.error('Error searching images:', err.message);
         res.status(500).send('Error searching images');

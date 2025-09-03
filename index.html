@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.3.1</span>
+          <span class="version">v2.3.2</span>
       </div>
 
       <div class="sidebar__footer">
@@ -222,6 +222,16 @@
                 img.style.cursor = 'pointer';
 
                 card.appendChild(img);
+
+                // Add tag overlay if there are matching tags
+                const matchingTags = getMatchingTags(image.tags || [], currentSearchTags);
+                if (matchingTags.length > 0) {
+                    const tagOverlay = document.createElement('div');
+                    tagOverlay.className = 'tag-overlay';
+                    tagOverlay.textContent = matchingTags.join(', ');
+                    card.appendChild(tagOverlay);
+                }
+
                 libraryGrid.appendChild(card);
             });
         } catch (error) {
@@ -440,6 +450,19 @@
         librarySearchChips.innerHTML = '';
         librarySearchInput.value = '';
         displayLibraryImages();
+    }
+
+    function getMatchingTags(imageTags, searchTags) {
+        if (!imageTags || !searchTags || searchTags.length === 0) {
+            return [];
+        }
+
+        // Return tags that are both in the image and in the search
+        return imageTags.filter(imageTag =>
+            searchTags.some(searchTag =>
+                searchTag.toLowerCase() === imageTag.toLowerCase()
+            )
+        );
     }
 
     // --- Event Listeners ---
