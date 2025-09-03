@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.3.4</span>
+          <span class="version">v2.3.6</span>
       </div>
 
       <div class="sidebar__footer">
@@ -43,7 +43,12 @@
         <section class="panel">
           <div class="search-bar">
             <div class="search-input-row">
-              <input type="text" id="library-search-input" placeholder="Enter tags separated by commas...">
+              <input type="text" id="library-search-input" placeholder="Enter tags separated by commas..."
+                     autocomplete="off"
+                     autocorrect="off"
+                     autocapitalize="off"
+                     spellcheck="false"
+                     data-form-type="other">
               <button id="clear-all-tags" class="button clear-tags-btn" type="button">Clear All Tags</button>
             </div>
             <div id="library-search-chips" class="chips search-chips"></div>
@@ -293,6 +298,7 @@
         navLinks[pageName].classList.add('is-active');
 
         if (pageName === 'library') {
+            initializeFreshSearchInput();
             displayLibraryImages();
         }
     }
@@ -468,6 +474,25 @@
 
     function updateClearButtonState() {
         clearAllTagsBtn.disabled = searchTags.length === 0;
+    }
+
+    function initializeFreshSearchInput() {
+        // Clear any cached or remembered values
+        librarySearchInput.value = '';
+        librarySearchInput.defaultValue = '';
+
+        // Clear any browser autocomplete cache for this session
+        if (librarySearchInput.form) {
+            librarySearchInput.form.reset();
+        }
+
+        // Force clear any browser-stored values
+        setTimeout(() => {
+            librarySearchInput.value = '';
+        }, 0);
+
+        // Clear search chips and reset state
+        clearAllSearchChips();
     }
 
     function getMatchingTags(imageTags, searchTags) {
@@ -666,13 +691,9 @@
         if (e.key === 'Enter' || e.key === 'Tab' || e.key === ',') {
             e.preventDefault();
             handleSearchTagCommit();
-        } else if (e.key === 'Backspace' && librarySearchInput.value === '') {
-            // Remove last chip when backspacing on empty input
-            if (searchTags.length > 0) {
-                const lastTag = searchTags[searchTags.length - 1];
-                removeSearchTagChip(lastTag.text);
-            }
         }
+        // Note: Backspace functionality for removing tag chips has been disabled
+        // Users must use the "x" button on individual chips or "Clear All Tags" button
     });
 
     // Also handle input changes for real-time search
@@ -681,6 +702,25 @@
         if (e.target.value === '') {
             clearAllSearchChips();
         }
+    });
+
+    // Ensure input is fresh on focus
+    librarySearchInput.addEventListener('focus', () => {
+        // Clear any browser-suggested values on focus
+        setTimeout(() => {
+            if (librarySearchInput.value && searchTags.length === 0) {
+                librarySearchInput.value = '';
+            }
+        }, 0);
+    });
+
+    // Prevent browser from storing values
+    librarySearchInput.addEventListener('blur', () => {
+        // Don't let browser remember the value
+        librarySearchInput.setAttribute('autocomplete', 'new-password');
+        setTimeout(() => {
+            librarySearchInput.setAttribute('autocomplete', 'off');
+        }, 100);
     });
 
     function handleSearchTagCommit() {
@@ -707,6 +747,9 @@
 
     // Initialize button state
     updateClearButtonState();
+
+    // Initialize search input to be completely fresh
+    initializeFreshSearchInput();
 
 
   </script>
