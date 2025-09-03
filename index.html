@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.3.2</span>
+          <span class="version">v2.3.4</span>
       </div>
 
       <div class="sidebar__footer">
@@ -42,7 +42,10 @@
         </header>
         <section class="panel">
           <div class="search-bar">
-            <input type="text" id="library-search-input" placeholder="Enter tags separated by commas...">
+            <div class="search-input-row">
+              <input type="text" id="library-search-input" placeholder="Enter tags separated by commas...">
+              <button id="clear-all-tags" class="button clear-tags-btn" type="button">Clear All Tags</button>
+            </div>
             <div id="library-search-chips" class="chips search-chips"></div>
             <div class="search-options">
               <label><input type="radio" name="search-mode" value="AND" checked> AND (all tags must match)</label>
@@ -126,7 +129,10 @@
   <div id="lightbox-modal" class="modal is-hidden">
     <span class="modal-close">&times;</span>
     <a class="prev">&#10094;</a>
-    <img class="modal-content" id="lightbox-image">
+    <div class="lightbox-content">
+      <img class="modal-content" id="lightbox-image">
+      <div id="lightbox-tags" class="lightbox-tags"></div>
+    </div>
     <a class="next">&#10095;</a>
   </div>
 
@@ -169,6 +175,7 @@
     const subjChips = document.getElementById('subj-chips');
     const modal = document.getElementById('lightbox-modal');
     const modalImg = document.getElementById('lightbox-image');
+    const lightboxTags = document.getElementById('lightbox-tags');
     const closeModal = document.querySelector('.modal-close');
     const prevButton = document.querySelector('.prev');
     const nextButton = document.querySelector('.next');
@@ -176,6 +183,7 @@
     const librarySearchInput = document.getElementById('library-search-input');
     const libraryGrid = document.getElementById('library-grid');
     const librarySearchChips = document.getElementById('library-search-chips');
+    const clearAllTagsBtn = document.getElementById('clear-all-tags');
     const searchModeRadios = document.querySelectorAll('input[name="search-mode"]');
 
     let filesToUpload = [];
@@ -210,7 +218,8 @@
                 // Store image data for lightbox navigation
                 libraryImages.push({
                     src: imageSrc,
-                    index: index
+                    index: index,
+                    tags: image.tags || []
                 });
 
                 // Add click event listener for lightbox
@@ -381,6 +390,7 @@
         currentImageIndex = index;
         imageSources = libraryImages.map(img => img.src);
         modalImg.src = imageSources[currentImageIndex];
+        displayLightboxTags(index);
         modal.classList.remove('is-hidden');
         updateArrowVisibility();
     }
@@ -389,6 +399,7 @@
         if (index >= imageSources.length || index < 0) return;
         currentImageIndex = index;
         modalImg.src = imageSources[currentImageIndex];
+        displayLightboxTags(index);
         updateArrowVisibility();
     }
 
@@ -422,6 +433,7 @@
 
         chip.appendChild(deleteBtn);
         librarySearchChips.appendChild(chip);
+        updateClearButtonState();
     }
 
     function removeSearchTagChip(tagText) {
@@ -438,6 +450,7 @@
 
         // Update search input and refresh results
         updateSearchInput();
+        updateClearButtonState();
         displayLibraryImages();
     }
 
@@ -449,7 +462,12 @@
         searchTags = [];
         librarySearchChips.innerHTML = '';
         librarySearchInput.value = '';
+        updateClearButtonState();
         displayLibraryImages();
+    }
+
+    function updateClearButtonState() {
+        clearAllTagsBtn.disabled = searchTags.length === 0;
     }
 
     function getMatchingTags(imageTags, searchTags) {
@@ -463,6 +481,39 @@
                 searchTag.toLowerCase() === imageTag.toLowerCase()
             )
         );
+    }
+
+    function displayLightboxTags(index) {
+        if (index >= libraryImages.length || index < 0) {
+            lightboxTags.innerHTML = '';
+            return;
+        }
+
+        const currentImage = libraryImages[index];
+        const imageTags = currentImage.tags || [];
+
+        lightboxTags.innerHTML = '';
+
+        if (imageTags.length === 0) {
+            lightboxTags.innerHTML = '<span class="no-tags">No tags</span>';
+            return;
+        }
+
+        // Create tag chips for lightbox
+        imageTags.forEach(tagText => {
+            const chip = document.createElement('span');
+            chip.className = 'lightbox-tag-chip';
+            chip.textContent = tagText;
+
+            // Highlight if it matches current search
+            const currentSearchTags = searchTags.map(tag => tag.text);
+            if (currentSearchTags.some(searchTag =>
+                searchTag.toLowerCase() === tagText.toLowerCase())) {
+                chip.classList.add('highlighted');
+            }
+
+            lightboxTags.appendChild(chip);
+        });
     }
 
     // --- Event Listeners ---
@@ -648,6 +699,14 @@
     }
 
     searchModeRadios.forEach(radio => radio.addEventListener('change', displayLibraryImages));
+
+    // Clear all tags button
+    clearAllTagsBtn.addEventListener('click', () => {
+        clearAllSearchChips();
+    });
+
+    // Initialize button state
+    updateClearButtonState();
 
 
   </script>
