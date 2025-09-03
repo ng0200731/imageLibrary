@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.5.0" />
+  <link rel="stylesheet" href="styles.css?v=2.6.1" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.5.0</span>
+          <span class="version">v2.6.1</span>
       </div>
 
       <div class="sidebar__footer">
@@ -43,7 +43,8 @@
           <div id="selection-controls" class="selection-controls is-hidden">
             <button id="select-all-btn" class="button" type="button">Select All</button>
             <button id="deselect-all-btn" class="button" type="button">Deselect All</button>
-            <button id="clear-selection-btn" class="button" type="button">Clear Selection</button>
+            <button id="view-pool-btn" class="button" type="button">View Selection Pool</button>
+            <button id="back-to-library-btn" class="button is-hidden" type="button">Back to Library</button>
             <button id="add-to-project-btn" class="button button--primary" type="button">Add to Project</button>
             <span id="selection-count" class="selection-count">0 selected</span>
           </div>
@@ -230,7 +231,8 @@
     const selectionControls = document.getElementById('selection-controls');
     const selectAllBtn = document.getElementById('select-all-btn');
     const deselectAllBtn = document.getElementById('deselect-all-btn');
-    const clearSelectionBtn = document.getElementById('clear-selection-btn');
+    const viewPoolBtn = document.getElementById('view-pool-btn');
+    const backToLibraryBtn = document.getElementById('back-to-library-btn');
     const addToProjectBtn = document.getElementById('add-to-project-btn');
     const selectionCount = document.getElementById('selection-count');
     const projectNameModal = document.getElementById('project-name-modal');
@@ -246,10 +248,14 @@
     let searchTags = []; // Store current search tags as chips
     let selectedImages = []; // Store selected image IDs for project creation
     let projects = []; // Store created projects
+    let isPoolView = false; // Track if we're viewing selection pool
 
     // --- Function Definitions ---
 
     async function displayLibraryImages() {
+        console.log('displayLibraryImages called, selectedImages at start:', selectedImages);
+        console.log('isPoolView:', isPoolView);
+
         const searchMode = document.querySelector('input[name="search-mode"]:checked').value;
         const currentSearchTags = searchTags.map(tag => tag.text);
 
@@ -260,16 +266,27 @@
 
             let imagesToDisplay = [];
 
-            if (currentSearchTags.length === 0) {
-                // No search tags - show all images
+            if (isPoolView) {
+                // Pool view - show only selected images
+                imagesToDisplay = allImages.filter(img => selectedImages.includes(img.id));
+            } else if (currentSearchTags.length === 0) {
+                // Library view with no search tags - show all images
                 imagesToDisplay = allImages;
             } else {
-                // Get tag-matching images
+                // Library view with search tags - show tag-matching + manually selected images
+                console.log('Fetching tag-matching images for tags:', currentSearchTags);
                 const tagResponse = await fetch(`${API_URL}/images?tags=${currentSearchTags.join(',')}&mode=${searchMode}`);
+
+                if (!tagResponse.ok) {
+                    throw new Error(`Tag search failed: ${tagResponse.status} ${tagResponse.statusText}`);
+                }
+
                 const tagMatchingImages = await tagResponse.json();
+                console.log('Tag-matching images found:', tagMatchingImages.length);
 
                 // Get manually selected images that might not match tags
                 const manuallySelectedImages = allImages.filter(img => selectedImages.includes(img.id));
+                console.log('Manually selected images:', manuallySelectedImages.length);
 
                 // Combine tag-matching and manually selected images (remove duplicates)
                 const combinedImageIds = new Set();
@@ -290,6 +307,8 @@
                         imagesToDisplay.push(img);
                     }
                 });
+
+                console.log('Combined images to display:', imagesToDisplay.length);
             }
 
             const images = imagesToDisplay;
@@ -318,10 +337,16 @@
                     id: image.id
                 });
 
-                // Add click event listener for selection toggle (not lightbox)
+                // Add click event listener based on view mode
                 img.addEventListener('click', (e) => {
                     e.preventDefault();
-                    toggleImageSelection(image.id, card);
+                    if (isPoolView) {
+                        // In pool view, open lightbox
+                        openLibraryLightbox(index);
+                    } else {
+                        // In library view, toggle selection
+                        toggleImageSelection(image.id, card);
+                    }
                 });
 
                 // Add cursor pointer style
@@ -342,9 +367,9 @@
                 const wasAlreadySelected = selectedImages.includes(image.id);
                 const hasMatchingTags = currentSearchTags.length > 0 && matchingTags.length > 0;
 
-                // Keep existing selection OR auto-select if has matching tags
-                if (wasAlreadySelected || hasMatchingTags) {
-                    card.classList.add('selected');
+                if (isPoolView) {
+                    // In pool view, all displayed images are selected and locked
+                    card.classList.add('selected', 'pool-view');
 
                     // Add visual indicator for selection type
                     if (wasAlreadySelected && !hasMatchingTags) {
@@ -352,26 +377,62 @@
                     } else if (hasMatchingTags) {
                         card.classList.add('tag-selection');
                     }
+                } else {
+                    // In library view, handle normal selection logic
+                    if (wasAlreadySelected || hasMatchingTags) {
+                        card.classList.add('selected');
 
-                    // Only add to selectedImages if not already there
-                    if (!wasAlreadySelected) {
-                        selectedImages.push(image.id);
+                        // Add visual indicator for selection type
+                        if (wasAlreadySelected && !hasMatchingTags) {
+                            card.classList.add('manual-selection');
+                        } else if (hasMatchingTags) {
+                            card.classList.add('tag-selection');
+                        }
+
+                        // Only add to selectedImages if not already there
+                        if (!wasAlreadySelected) {
+                            selectedImages.push(image.id);
+                        }
                     }
                 }
 
                 libraryGrid.appendChild(card);
             });
 
-            // Show selection controls if there are images and search is active
-            if (images.length > 0 && currentSearchTags.length > 0) {
+            // Show selection controls if there are images and search is active OR if we have selections
+            if (images.length > 0 && (currentSearchTags.length > 0 || selectedImages.length > 0)) {
                 selectionControls.classList.remove('is-hidden');
-                updateSelectionState();
+                updateSelectionState(); // This will call updateButtonVisibility()
             } else {
                 selectionControls.classList.add('is-hidden');
-                selectedImages = [];
+                // Only clear selectedImages if we're not in pool view and have no search tags
+                if (!isPoolView && currentSearchTags.length === 0) {
+                    selectedImages = [];
+                }
+                updateButtonVisibility(); // Ensure buttons are correct even when no selections
             }
+
+            console.log('displayLibraryImages completed, selectedImages at end:', selectedImages);
         } catch (error) {
             console.error('Error fetching images:', error);
+            console.error('Error details:', {
+                message: error.message,
+                stack: error.stack,
+                isPoolView: isPoolView,
+                selectedImages: selectedImages,
+                searchTags: searchTags
+            });
+            libraryGrid.innerHTML = '<p>Error loading images. Please try again.</p>';
+
+            // Reset states to prevent getting stuck
+            if (isPoolView) {
+                console.log('Resetting pool view state due to error');
+                isPoolView = false;
+                viewPoolBtn.classList.remove('is-hidden');
+                backToLibraryBtn.classList.add('is-hidden');
+                selectAllBtn.classList.remove('is-hidden');
+                deselectAllBtn.classList.remove('is-hidden');
+            }
         }
     }
 
@@ -668,6 +729,11 @@
     // --- Selection and Project Management Functions ---
 
     function toggleImageSelection(imageId, cardElement) {
+        // In pool view, don't allow deselection
+        if (isPoolView) {
+            return;
+        }
+
         const isSelected = selectedImages.includes(imageId);
 
         if (isSelected) {
@@ -686,6 +752,78 @@
     function updateSelectionState() {
         selectionCount.textContent = `${selectedImages.length} selected`;
         addToProjectBtn.disabled = selectedImages.length === 0;
+        updateButtonVisibility();
+    }
+
+    function isShowingSelectionPool() {
+        // We're showing selection pool if:
+        // 1. We have active search tags AND selections, OR
+        // 2. We're in pool view
+        const hasActiveTags = searchTags.length > 0;
+        const hasSelections = selectedImages.length > 0;
+        return isPoolView || (hasActiveTags && hasSelections);
+    }
+
+    function updateButtonVisibility() {
+        console.log('updateButtonVisibility called, isPoolView:', isPoolView, 'selectedImages.length:', selectedImages.length);
+        console.log('searchTags.length:', searchTags.length);
+
+        const hasSelections = selectedImages.length > 0;
+        const showingSelectionPool = isShowingSelectionPool();
+
+        if (isPoolView) {
+            // Pool view: Hide library controls, show back button
+            viewPoolBtn.classList.add('is-hidden');
+            viewPoolBtn.disabled = true;
+
+            backToLibraryBtn.classList.remove('is-hidden');
+            backToLibraryBtn.disabled = false;
+
+            selectAllBtn.classList.add('is-hidden');
+            selectAllBtn.disabled = true;
+
+            deselectAllBtn.classList.add('is-hidden');
+            deselectAllBtn.disabled = true;
+
+            addToProjectBtn.disabled = !hasSelections; // Dimmed when no selections
+
+            console.log('Set buttons for pool view');
+        } else {
+            // Library view: Show library controls, hide back button
+            viewPoolBtn.classList.remove('is-hidden');
+
+            // Change button text and behavior based on context
+            if (showingSelectionPool) {
+                // Currently showing selection pool (filtered view) - change to "Back to Full Library"
+                viewPoolBtn.textContent = 'Back to Full Library';
+                viewPoolBtn.disabled = false; // Always enabled when showing filtered view
+            } else {
+                // Currently showing full library - change to "View Selection Pool"
+                viewPoolBtn.textContent = 'View Selection Pool';
+                viewPoolBtn.disabled = !hasSelections; // Dimmed when no selections
+            }
+
+            backToLibraryBtn.classList.add('is-hidden');
+            backToLibraryBtn.disabled = true;
+
+            selectAllBtn.classList.remove('is-hidden');
+            selectAllBtn.disabled = false; // Always enabled in library view
+
+            deselectAllBtn.classList.remove('is-hidden');
+            deselectAllBtn.disabled = !hasSelections; // Dimmed when no selections
+
+            addToProjectBtn.disabled = !hasSelections; // Dimmed when no selections
+
+            console.log('Set buttons for library view, showingSelectionPool:', showingSelectionPool);
+        }
+
+        // Log final button states for debugging
+        console.log('Final button states:');
+        console.log('viewPoolBtn - hidden:', viewPoolBtn.classList.contains('is-hidden'), 'disabled:', viewPoolBtn.disabled);
+        console.log('backToLibraryBtn - hidden:', backToLibraryBtn.classList.contains('is-hidden'), 'disabled:', backToLibraryBtn.disabled);
+        console.log('selectAllBtn - hidden:', selectAllBtn.classList.contains('is-hidden'), 'disabled:', selectAllBtn.disabled);
+        console.log('deselectAllBtn - hidden:', deselectAllBtn.classList.contains('is-hidden'), 'disabled:', deselectAllBtn.disabled);
+        console.log('addToProjectBtn - disabled:', addToProjectBtn.disabled);
     }
 
     function selectAllImages() {
@@ -702,6 +840,12 @@
     }
 
     function deselectAllImages() {
+        // Safety check: Don't execute if no selections
+        if (selectedImages.length === 0) {
+            console.warn('deselectAllImages called but no images are selected');
+            return;
+        }
+
         const cards = document.querySelectorAll('.library-card');
         selectedImages = [];
 
@@ -712,18 +856,110 @@
         updateSelectionState();
     }
 
-    function clearAllSelections() {
-        // Clear all selections and refresh the library view
-        selectedImages = [];
+
+
+    function handleViewPoolClick() {
+        if (isShowingSelectionPool()) {
+            // Currently showing selection pool - go back to full library
+            backToFullLibrary();
+        } else {
+            // Currently showing full library - view selection pool
+            viewSelectionPool();
+        }
+    }
+
+    async function viewSelectionPool() {
+        console.log('=== viewSelectionPool START ===');
+        console.log('selectedImages:', selectedImages);
+        console.log('selectedImages.length:', selectedImages.length);
+
+        if (selectedImages.length === 0) {
+            alert('No images selected. Please select some images first.');
+            return;
+        }
+
+        console.log('Setting isPoolView to true');
+        isPoolView = true;
+
+        // Use the main display function which now handles pool view
+        await displayLibraryImages();
+        console.log('=== viewSelectionPool END ===');
+    }
+
+    function backToFullLibrary() {
+        console.log('=== backToFullLibrary START ===');
+        console.log('Clearing search tags and returning to full library');
+
+        // Clear search tags to show full library
+        searchTags = [];
+        librarySearchChips.innerHTML = '';
+        librarySearchInput.value = '';
+
+        // Ensure we're in library view
+        isPoolView = false;
+
+        // Refresh to show full library
         displayLibraryImages();
+        console.log('=== backToFullLibrary END ===');
+    }
+
+    function backToLibrary() {
+        try {
+            console.log('=== backToLibrary START ===');
+            console.log('selectedImages before:', selectedImages);
+            console.log('searchTags before:', searchTags);
+            console.log('isPoolView before:', isPoolView);
+
+            // Safety check: Don't execute if button should be disabled
+            if (backToLibraryBtn.disabled) {
+                console.error('backToLibrary called but button is disabled! This should not happen.');
+                console.log('Button state - hidden:', backToLibraryBtn.classList.contains('is-hidden'), 'disabled:', backToLibraryBtn.disabled);
+                return;
+            }
+
+            // Check if we're actually in pool view
+            if (!isPoolView) {
+                console.warn('backToLibrary called but isPoolView is already false!');
+                console.log('Current button states:');
+                console.log('viewPoolBtn hidden:', viewPoolBtn.classList.contains('is-hidden'), 'disabled:', viewPoolBtn.disabled);
+                console.log('backToLibraryBtn hidden:', backToLibraryBtn.classList.contains('is-hidden'), 'disabled:', backToLibraryBtn.disabled);
+                // Force correct button state
+                updateButtonVisibility();
+                return;
+            }
+
+            isPoolView = false;
+            console.log('Set isPoolView to false');
+
+            // Don't clear search tags - preserve them
+            // Tags should only be removed when user explicitly removes them
+
+            // Refresh library view (will show tag-filtered + manual selections)
+            console.log('Calling displayLibraryImages...');
+            displayLibraryImages().then(() => {
+                console.log('displayLibraryImages completed successfully');
+                console.log('=== backToLibrary END ===');
+            }).catch(error => {
+                console.error('Error in displayLibraryImages:', error);
+                alert('Error returning to library. Please refresh the page.');
+            });
+
+        } catch (error) {
+            console.error('Error in backToLibrary:', error);
+            alert('Error returning to library. Please refresh the page.');
+        }
     }
 
     function showProjectNameModal() {
         console.log('Selected images before modal:', selectedImages);
+
+        // Safety check: Don't execute if no selections
         if (selectedImages.length === 0) {
+            console.warn('showProjectNameModal called but no images are selected');
             alert('Please select at least one image.');
             return;
         }
+
         projectNameInput.value = '';
         projectNameModal.classList.remove('is-hidden');
         projectNameInput.focus();
@@ -1099,7 +1335,8 @@
     // Selection and project event listeners
     selectAllBtn.addEventListener('click', selectAllImages);
     deselectAllBtn.addEventListener('click', deselectAllImages);
-    clearSelectionBtn.addEventListener('click', clearAllSelections);
+    viewPoolBtn.addEventListener('click', handleViewPoolClick);
+    backToLibraryBtn.addEventListener('click', backToLibrary);
     addToProjectBtn.addEventListener('click', showProjectNameModal);
     cancelProjectBtn.addEventListener('click', hideProjectNameModal);
     createProjectBtn.addEventListener('click', createProject);

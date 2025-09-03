@@ -752,6 +752,17 @@ body {
   margin-left: auto;
 }
 
+/* Disabled button styles */
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.button.is-hidden {
+  display: none !important;
+}
+
 /* Image Selection */
 .library-card.selected {
   border: 3px solid #4caf50;
@@ -796,6 +807,34 @@ body {
 .library-card.tag-selection::after {
   background: #4caf50;
   content: '🏷️';
+}
+
+/* Pool View Styles */
+.library-card.pool-view {
+  position: relative;
+  cursor: pointer;
+}
+
+.library-card.pool-view::before {
+  content: 'LOCKED';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.library-card.pool-view:hover::before {
+  opacity: 1;
 }
 
 /* Project Styles */
