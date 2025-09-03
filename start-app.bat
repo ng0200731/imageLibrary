@@ -1,5 +1,5 @@
 @echo off
-title Image Library Launcher v2.3.0
+title Image Library Launcher v2.4.3
 
 echo.
 echo =================================================================
@@ -19,6 +19,37 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8080"') do (
 
 echo.
 echo =================================================================
+echo =                   Clearing Browser Cache...                   =
+echo =================================================================
+
+REM Clear browser cache directories for common browsers
+echo Clearing Chrome cache...
+if exist "%LOCALAPPDATA%\Google\Chrome\User Data\Default\Cache" (
+    rd /s /q "%LOCALAPPDATA%\Google\Chrome\User Data\Default\Cache" 2>nul
+)
+if exist "%LOCALAPPDATA%\Google\Chrome\User Data\Default\Code Cache" (
+    rd /s /q "%LOCALAPPDATA%\Google\Chrome\User Data\Default\Code Cache" 2>nul
+)
+
+echo Clearing Edge cache...
+if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Cache" (
+    rd /s /q "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Cache" 2>nul
+)
+if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Code Cache" (
+    rd /s /q "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Code Cache" 2>nul
+)
+
+echo Clearing Firefox cache...
+if exist "%LOCALAPPDATA%\Mozilla\Firefox\Profiles" (
+    for /d %%i in ("%LOCALAPPDATA%\Mozilla\Firefox\Profiles\*") do (
+        if exist "%%i\cache2" rd /s /q "%%i\cache2" 2>nul
+    )
+)
+
+echo Cache clearing completed.
+echo.
+
+echo =================================================================
 echo =                  Starting Backend Server...                   =
 echo =================================================================
 echo.
@@ -37,5 +68,5 @@ echo =                 Starting Frontend Server...                  =
 echo =================================================================
 echo.
 
-npm start
+npx http-server -p 8080 -c-1
 

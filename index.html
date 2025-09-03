@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=2.4.3" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.4.0</span>
+          <span class="version">v2.4.3</span>
       </div>
 
       <div class="sidebar__footer">
@@ -257,6 +257,7 @@
 
             libraryGrid.innerHTML = '';
             libraryImages = []; // Reset library images array
+            selectedImages = []; // Reset selected images
 
             // Check which tags have matches and update chip colors
             await updateTagChipColors(currentSearchTags, searchMode);
@@ -265,13 +266,6 @@
                 const card = document.createElement('div');
                 card.className = 'preview-card library-card';
                 card.dataset.imageId = image.id;
-
-                // Add selection checkbox
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.className = 'image-checkbox';
-                checkbox.dataset.imageId = image.id;
-                checkbox.addEventListener('change', updateSelectionState);
 
                 const img = document.createElement('img');
                 const imageSrc = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
@@ -285,15 +279,15 @@
                     id: image.id
                 });
 
-                // Add click event listener for lightbox
-                img.addEventListener('click', () => {
-                    openLibraryLightbox(index);
+                // Add click event listener for selection toggle (not lightbox)
+                img.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    toggleImageSelection(image.id, card);
                 });
 
                 // Add cursor pointer style
                 img.style.cursor = 'pointer';
 
-                card.appendChild(checkbox);
                 card.appendChild(img);
 
                 // Add tag overlay if there are matching tags
@@ -305,14 +299,23 @@
                     card.appendChild(tagOverlay);
                 }
 
+                // Auto-select images that have matching tags (when search is active)
+                const hasMatchingTags = currentSearchTags.length > 0 && matchingTags.length > 0;
+                if (hasMatchingTags) {
+                    card.classList.add('selected');
+                    selectedImages.push(image.id);
+                }
+
                 libraryGrid.appendChild(card);
             });
 
-            // Show selection controls if there are images
-            if (images.length > 0) {
+            // Show selection controls if there are images and search is active
+            if (images.length > 0 && currentSearchTags.length > 0) {
                 selectionControls.classList.remove('is-hidden');
+                updateSelectionState();
             } else {
                 selectionControls.classList.add('is-hidden');
+                selectedImages = [];
             }
         } catch (error) {
             console.error('Error fetching images:', error);
@@ -611,29 +614,53 @@
 
     // --- Selection and Project Management Functions ---
 
-    function updateSelectionState() {
-        const checkboxes = document.querySelectorAll('.image-checkbox');
-        selectedImages = Array.from(checkboxes)
-            .filter(cb => cb.checked)
-            .map(cb => parseInt(cb.dataset.imageId));
+    function toggleImageSelection(imageId, cardElement) {
+        const isSelected = selectedImages.includes(imageId);
 
+        if (isSelected) {
+            // Deselect
+            selectedImages = selectedImages.filter(id => id !== imageId);
+            cardElement.classList.remove('selected');
+        } else {
+            // Select
+            selectedImages.push(imageId);
+            cardElement.classList.add('selected');
+        }
+
+        updateSelectionState();
+    }
+
+    function updateSelectionState() {
         selectionCount.textContent = `${selectedImages.length} selected`;
         addToProjectBtn.disabled = selectedImages.length === 0;
     }
 
     function selectAllImages() {
-        const checkboxes = document.querySelectorAll('.image-checkbox');
-        checkboxes.forEach(cb => cb.checked = true);
+        const cards = document.querySelectorAll('.library-card');
+        selectedImages = [];
+
+        cards.forEach(card => {
+            const imageId = parseInt(card.dataset.imageId);
+            selectedImages.push(imageId);
+            card.classList.add('selected');
+        });
+
         updateSelectionState();
     }
 
     function deselectAllImages() {
-        const checkboxes = document.querySelectorAll('.image-checkbox');
-        checkboxes.forEach(cb => cb.checked = false);
+        const cards = document.querySelectorAll('.library-card');
+        selectedImages = [];
+
+        cards.forEach(card => {
+            card.classList.remove('selected');
+        });
+
         updateSelectionState();
     }
 
     function showProjectNameModal() {
+        console.log('Selected images before modal:', selectedImages);
         if (selectedImages.length === 0) {
             alert('Please select at least one image.');
             return;
@@ -650,8 +677,16 @@
 
     function createProject() {
         const projectName = projectNameInput.value.trim();
+        console.log('Creating project with selected images:', selectedImages);
+
         if (!projectName) {
             alert('Please enter a project name.');
+            return;
+        }
+
+        // Check if we have selected images
+        if (selectedImages.length === 0) {
+            alert('Please select at least one image before creating a project.');
             return;
         }
 
@@ -661,11 +696,14 @@
             return;
         }
 
-        // Create new project
+        // Store the count before clearing selection
+        const imageCount = selectedImages.length;
+
+        // Create new project with current selected images
         const newProject = {
             id: Date.now(),
             name: projectName,
-            images: [...selectedImages],
+            images: [...selectedImages], // Create a copy of the array
             createdAt: new Date().toISOString()
         };
 
@@ -673,11 +711,11 @@
         saveProjectsToStorage();
         displayProjects();
 
-        // Clear selection and hide modal
-        deselectAllImages();
+        // Hide modal first, then clear selection
         hideProjectNameModal();
+        deselectAllImages();
 
-        alert(`Project "${projectName}" created with ${selectedImages.length} images.`);
+        alert(`Project "${projectName}" created with ${imageCount} images.`);
     }
 
     function saveProjectsToStorage() {
