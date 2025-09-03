@@ -550,3 +550,60 @@ body {
     height: 180px;
   }
 }
+
+
+/* Confirmation Modal Styles */
+.modal-content-text {
+  margin: auto;
+  padding: 24px;
+  background-color: #fff;
+  border: 2px solid #000;
+  width: fit-content;
+  min-width: 320px;
+  max-width: 90vw;
+  text-align: center;
+}
+
+.modal-content-text p {
+  margin: 0 0 24px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.modal-buttons .button {
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 120px;
+  border: 2px solid #000;
+  background: #fff;
+  color: #000;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-buttons .button:hover,
+.modal-buttons .button:focus {
+  background: #000;
+  color: #fff;
+  outline: none;
+}
+
+.modal-buttons .button.is-primary {
+  background: #000;
+  color: #fff;
+}
+
+.modal-buttons .button.is-primary:hover,
+.modal-buttons .button.is-primary:focus {
+  background: #fff;
+  color: #000;
+}

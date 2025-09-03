@@ -1,5 +1,5 @@
 @echo off
-title Image Library Launcher
+title Image Library Launcher v2.3.0
 
 echo.
 echo =================================================================
@@ -37,5 +37,5 @@ echo =                 Starting Frontend Server...                  =
 echo =================================================================
 echo.
 
-live-server --ignore=backend
+npm start
 
