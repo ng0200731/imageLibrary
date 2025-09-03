@@ -515,6 +515,65 @@ body {
   font-size: 14px;
 }
 
+/* Search chips container */
+.search-chips {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  min-height: 20px;
+}
+
+/* Search chip styles */
+.search-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  margin: 2px 4px 2px 0;
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
+  font-size: 12px;
+  cursor: default;
+  transition: all 0.2s ease;
+}
+
+.search-chip.has-matches {
+  background: #e8f5e8;
+  border-color: #4caf50;
+  color: #2e7d32;
+}
+
+.search-chip.no-matches {
+  background: #ffebee;
+  border-color: #f44336;
+  color: #c62828;
+}
+
+/* Chip delete button */
+.chip-delete {
+  margin-left: 6px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.chip-delete:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.search-chip.no-matches .chip-delete:hover {
+  background: rgba(198, 40, 40, 0.2);
+}
+
+.search-chip.has-matches .chip-delete:hover {
+  background: rgba(46, 125, 50, 0.2);
+}
+
 
 
 .search-options {

@@ -25,7 +25,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.3.0</span>
+          <span class="version">v2.3.1</span>
       </div>
 
       <div class="sidebar__footer">
@@ -43,6 +43,7 @@
         <section class="panel">
           <div class="search-bar">
             <input type="text" id="library-search-input" placeholder="Enter tags separated by commas...">
+            <div id="library-search-chips" class="chips search-chips"></div>
             <div class="search-options">
               <label><input type="radio" name="search-mode" value="AND" checked> AND (all tags must match)</label>
               <label><input type="radio" name="search-mode" value="OR"> OR (any tag can match)</label>
@@ -174,26 +175,30 @@
     const uploadButton = document.getElementById('upload-button');
     const librarySearchInput = document.getElementById('library-search-input');
     const libraryGrid = document.getElementById('library-grid');
+    const librarySearchChips = document.getElementById('library-search-chips');
     const searchModeRadios = document.querySelectorAll('input[name="search-mode"]');
 
     let filesToUpload = [];
     let currentImageIndex = 0;
     let imageSources = [];
     let libraryImages = []; // Store current library images for lightbox navigation
+    let searchTags = []; // Store current search tags as chips
 
     // --- Function Definitions ---
 
     async function displayLibraryImages() {
-        const searchTerm = librarySearchInput.value;
         const searchMode = document.querySelector('input[name="search-mode"]:checked').value;
-        const searchTags = searchTerm.split(',').map(tag => tag.trim()).filter(tag => tag);
+        const currentSearchTags = searchTags.map(tag => tag.text);
 
         try {
-            const response = await fetch(`${API_URL}/images?tags=${searchTags.join(',')}&mode=${searchMode}`);
+            const response = await fetch(`${API_URL}/images?tags=${currentSearchTags.join(',')}&mode=${searchMode}`);
             const images = await response.json();
 
             libraryGrid.innerHTML = '';
             libraryImages = []; // Reset library images array
+
+            // Check which tags have matches and update chip colors
+            await updateTagChipColors(currentSearchTags, searchMode);
 
             images.forEach((image, index) => {
                 const card = document.createElement('div');
@@ -221,6 +226,39 @@
             });
         } catch (error) {
             console.error('Error fetching images:', error);
+        }
+    }
+
+    async function updateTagChipColors(tags, searchMode) {
+        for (const tagText of tags) {
+            try {
+                const response = await fetch(`${API_URL}/images?tags=${tagText}&mode=OR`);
+                const images = await response.json();
+                const hasMatches = images.length > 0;
+
+                // Update the chip color based on matches
+                const chip = Array.from(librarySearchChips.querySelectorAll('.search-chip')).find(
+                    chip => chip.textContent.replace('x', '').trim() === tagText
+                );
+
+                if (chip) {
+                    if (hasMatches) {
+                        chip.classList.remove('no-matches');
+                        chip.classList.add('has-matches');
+                    } else {
+                        chip.classList.remove('has-matches');
+                        chip.classList.add('no-matches');
+                    }
+                }
+
+                // Update searchTags array
+                const tagIndex = searchTags.findIndex(tag => tag.text === tagText);
+                if (tagIndex !== -1) {
+                    searchTags[tagIndex].hasMatches = hasMatches;
+                }
+            } catch (error) {
+                console.error(`Error checking matches for tag "${tagText}":`, error);
+            }
         }
     }
 
@@ -342,6 +380,66 @@
         currentImageIndex = index;
         modalImg.src = imageSources[currentImageIndex];
         updateArrowVisibility();
+    }
+
+    // --- Search Tag Chip Functions ---
+
+    function addSearchTagChip(tagText, hasMatches = true) {
+        const text = tagText.toLowerCase().trim();
+        if (!text) return;
+
+        // Check if tag already exists
+        if (searchTags.some(tag => tag.text === text)) return;
+
+        // Add to searchTags array
+        searchTags.push({ text: text, hasMatches: hasMatches });
+
+        // Create chip element
+        const chip = document.createElement('span');
+        chip.className = hasMatches ? 'chip search-chip' : 'chip search-chip no-matches';
+        chip.textContent = text;
+        chip.tabIndex = 0;
+
+        // Add delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'chip-delete';
+        deleteBtn.textContent = 'x';
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeSearchTagChip(text);
+        });
+
+        chip.appendChild(deleteBtn);
+        librarySearchChips.appendChild(chip);
+    }
+
+    function removeSearchTagChip(tagText) {
+        // Remove from searchTags array
+        searchTags = searchTags.filter(tag => tag.text !== tagText);
+
+        // Remove from DOM
+        const chips = librarySearchChips.querySelectorAll('.search-chip');
+        chips.forEach(chip => {
+            if (chip.textContent.replace('x', '').trim() === tagText) {
+                chip.remove();
+            }
+        });
+
+        // Update search input and refresh results
+        updateSearchInput();
+        displayLibraryImages();
+    }
+
+    function updateSearchInput() {
+        librarySearchInput.value = searchTags.map(tag => tag.text).join(', ');
+    }
+
+    function clearAllSearchChips() {
+        searchTags = [];
+        librarySearchChips.innerHTML = '';
+        librarySearchInput.value = '';
+        displayLibraryImages();
     }
 
     // --- Event Listeners ---
@@ -489,7 +587,43 @@
         }
     });
 
-    librarySearchInput.addEventListener('input', displayLibraryImages);
+    // Handle tag input with Enter, Tab, or comma
+    librarySearchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === 'Tab' || e.key === ',') {
+            e.preventDefault();
+            handleSearchTagCommit();
+        } else if (e.key === 'Backspace' && librarySearchInput.value === '') {
+            // Remove last chip when backspacing on empty input
+            if (searchTags.length > 0) {
+                const lastTag = searchTags[searchTags.length - 1];
+                removeSearchTagChip(lastTag.text);
+            }
+        }
+    });
+
+    // Also handle input changes for real-time search
+    librarySearchInput.addEventListener('input', (e) => {
+        // If user clears the input, clear all chips
+        if (e.target.value === '') {
+            clearAllSearchChips();
+        }
+    });
+
+    function handleSearchTagCommit() {
+        const inputValue = librarySearchInput.value.trim();
+        if (!inputValue) return;
+
+        // Split by comma and add each tag as a chip
+        const newTags = inputValue.split(',').map(tag => tag.trim()).filter(tag => tag);
+        newTags.forEach(tagText => {
+            addSearchTagChip(tagText, true); // Default to has matches, will be updated
+        });
+
+        // Clear input and refresh search
+        librarySearchInput.value = '';
+        displayLibraryImages();
+    }
+
     searchModeRadios.forEach(radio => radio.addEventListener('change', displayLibraryImages));
 
 
