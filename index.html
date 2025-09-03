@@ -20,12 +20,13 @@
       <nav class="menu">
         <a id="nav-library" class="menu__item is-active" href="#">Image Library</a>
         <a id="nav-upload" class="menu__item" href="#">Upload Image</a>
+        <a id="nav-project" class="menu__item" href="#">Project</a>
         <a id="nav-tags" class="menu__item" href="#">Tags</a>
         <a id="nav-settings" class="menu__item" href="#">Settings</a>
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.3.6</span>
+          <span class="version">v2.4.0</span>
       </div>
 
       <div class="sidebar__footer">
@@ -39,6 +40,12 @@
         <header class="content__header">
           <h1 class="title">Image Library</h1>
           <div class="legend" style="margin-top:8px;">Solid = Objective, Dashed = Subjective</div>
+          <div id="selection-controls" class="selection-controls is-hidden">
+            <button id="select-all-btn" class="button" type="button">Select All</button>
+            <button id="deselect-all-btn" class="button" type="button">Deselect All</button>
+            <button id="add-to-project-btn" class="button button--primary" type="button">Add to Project</button>
+            <span id="selection-count" class="selection-count">0 selected</span>
+          </div>
         </header>
         <section class="panel">
           <div class="search-bar">
@@ -123,6 +130,18 @@
             </div>
           </section>
       </div>
+
+      <!-- Project Page -->
+      <div id="page-project" class="page is-hidden">
+        <header class="content__header">
+          <h1 class="title">Projects</h1>
+        </header>
+        <section class="panel">
+          <div id="project-list" class="project-list">
+            <p class="text">No projects created yet. Select images in the Image Library and click "Add to Project" to create your first project.</p>
+          </div>
+        </section>
+      </div>
     </main>
   </div>
 
@@ -161,16 +180,31 @@
         </div>
       </div>
 
+      <!-- Project Name Input Modal -->
+      <div id="project-name-modal" class="modal is-hidden">
+        <div class="modal-content-text">
+          <h3>Create New Project</h3>
+          <p>Enter a name for your project:</p>
+          <input type="text" id="project-name-input" placeholder="Project name..." maxlength="50">
+          <div class="modal-buttons">
+            <button id="cancel-project-btn" class="button">Cancel</button>
+            <button id="create-project-btn" class="button is-primary">Create Project</button>
+          </div>
+        </div>
+      </div>
+
   <script>
     // --- Constants & State ---
     const API_URL = 'http://localhost:3000';
     const navLinks = {
         library: document.getElementById('nav-library'),
         upload: document.getElementById('nav-upload'),
+        project: document.getElementById('nav-project'),
     };
     const pages = {
         library: document.getElementById('page-library'),
         upload: document.getElementById('page-upload'),
+        project: document.getElementById('page-project'),
     };
     const fileInput = document.getElementById('file-input');
     const previewGrid = document.getElementById('preview-grid');
@@ -191,11 +225,25 @@
     const clearAllTagsBtn = document.getElementById('clear-all-tags');
     const searchModeRadios = document.querySelectorAll('input[name="search-mode"]');
 
+    // Selection and project elements
+    const selectionControls = document.getElementById('selection-controls');
+    const selectAllBtn = document.getElementById('select-all-btn');
+    const deselectAllBtn = document.getElementById('deselect-all-btn');
+    const addToProjectBtn = document.getElementById('add-to-project-btn');
+    const selectionCount = document.getElementById('selection-count');
+    const projectNameModal = document.getElementById('project-name-modal');
+    const projectNameInput = document.getElementById('project-name-input');
+    const cancelProjectBtn = document.getElementById('cancel-project-btn');
+    const createProjectBtn = document.getElementById('create-project-btn');
+    const projectList = document.getElementById('project-list');
+
     let filesToUpload = [];
     let currentImageIndex = 0;
     let imageSources = [];
     let libraryImages = []; // Store current library images for lightbox navigation
     let searchTags = []; // Store current search tags as chips
+    let selectedImages = []; // Store selected image IDs for project creation
+    let projects = []; // Store created projects
 
     // --- Function Definitions ---
 
@@ -216,6 +264,15 @@
             images.forEach((image, index) => {
                 const card = document.createElement('div');
                 card.className = 'preview-card library-card';
+                card.dataset.imageId = image.id;
+
+                // Add selection checkbox
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'image-checkbox';
+                checkbox.dataset.imageId = image.id;
+                checkbox.addEventListener('change', updateSelectionState);
+
                 const img = document.createElement('img');
                 const imageSrc = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
                 img.src = imageSrc;
@@ -224,7 +281,8 @@
                 libraryImages.push({
                     src: imageSrc,
                     index: index,
-                    tags: image.tags || []
+                    tags: image.tags || [],
+                    id: image.id
                 });
 
                 // Add click event listener for lightbox
@@ -235,6 +293,7 @@
                 // Add cursor pointer style
                 img.style.cursor = 'pointer';
 
+                card.appendChild(checkbox);
                 card.appendChild(img);
 
                 // Add tag overlay if there are matching tags
@@ -248,6 +307,13 @@
 
                 libraryGrid.appendChild(card);
             });
+
+            // Show selection controls if there are images
+            if (images.length > 0) {
+                selectionControls.classList.remove('is-hidden');
+            } else {
+                selectionControls.classList.add('is-hidden');
+            }
         } catch (error) {
             console.error('Error fetching images:', error);
         }
@@ -300,6 +366,8 @@
         if (pageName === 'library') {
             initializeFreshSearchInput();
             displayLibraryImages();
+        } else if (pageName === 'project') {
+            displayProjects();
         }
     }
 
@@ -541,10 +609,160 @@
         });
     }
 
+    // --- Selection and Project Management Functions ---
+
+    function updateSelectionState() {
+        const checkboxes = document.querySelectorAll('.image-checkbox');
+        selectedImages = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => parseInt(cb.dataset.imageId));
+
+        selectionCount.textContent = `${selectedImages.length} selected`;
+        addToProjectBtn.disabled = selectedImages.length === 0;
+    }
+
+    function selectAllImages() {
+        const checkboxes = document.querySelectorAll('.image-checkbox');
+        checkboxes.forEach(cb => cb.checked = true);
+        updateSelectionState();
+    }
+
+    function deselectAllImages() {
+        const checkboxes = document.querySelectorAll('.image-checkbox');
+        checkboxes.forEach(cb => cb.checked = false);
+        updateSelectionState();
+    }
+
+    function showProjectNameModal() {
+        if (selectedImages.length === 0) {
+            alert('Please select at least one image.');
+            return;
+        }
+        projectNameInput.value = '';
+        projectNameModal.classList.remove('is-hidden');
+        projectNameInput.focus();
+    }
+
+    function hideProjectNameModal() {
+        projectNameModal.classList.add('is-hidden');
+        projectNameInput.value = '';
+    }
+
+    function createProject() {
+        const projectName = projectNameInput.value.trim();
+        if (!projectName) {
+            alert('Please enter a project name.');
+            return;
+        }
+
+        // Check if project name already exists
+        if (projects.some(p => p.name.toLowerCase() === projectName.toLowerCase())) {
+            alert('A project with this name already exists.');
+            return;
+        }
+
+        // Create new project
+        const newProject = {
+            id: Date.now(),
+            name: projectName,
+            images: [...selectedImages],
+            createdAt: new Date().toISOString()
+        };
+
+        projects.push(newProject);
+        saveProjectsToStorage();
+        displayProjects();
+
+        // Clear selection and hide modal
+        deselectAllImages();
+        hideProjectNameModal();
+
+        alert(`Project "${projectName}" created with ${selectedImages.length} images.`);
+    }
+
+    function saveProjectsToStorage() {
+        localStorage.setItem('imageLibraryProjects', JSON.stringify(projects));
+    }
+
+    function loadProjectsFromStorage() {
+        const stored = localStorage.getItem('imageLibraryProjects');
+        if (stored) {
+            projects = JSON.parse(stored);
+        }
+    }
+
+    async function displayProjects() {
+        if (projects.length === 0) {
+            projectList.innerHTML = '<p class="text">No projects created yet. Select images in the Image Library and click "Add to Project" to create your first project.</p>';
+            return;
+        }
+
+        projectList.innerHTML = '';
+
+        for (const project of projects) {
+            const projectCard = document.createElement('div');
+            projectCard.className = 'project-card';
+
+            const projectHeader = document.createElement('div');
+            projectHeader.className = 'project-header';
+
+            const projectTitle = document.createElement('h3');
+            projectTitle.textContent = project.name;
+
+            const projectInfo = document.createElement('span');
+            projectInfo.className = 'project-info';
+            projectInfo.textContent = `${project.images.length} images • Created ${new Date(project.createdAt).toLocaleDateString()}`;
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'button delete-project-btn';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.addEventListener('click', () => deleteProject(project.id));
+
+            projectHeader.appendChild(projectTitle);
+            projectHeader.appendChild(projectInfo);
+            projectHeader.appendChild(deleteBtn);
+
+            const projectImages = document.createElement('div');
+            projectImages.className = 'project-images preview-grid';
+
+            // Get image data for this project
+            try {
+                const response = await fetch(`${API_URL}/images`);
+                const allImages = await response.json();
+                const projectImageData = allImages.filter(img => project.images.includes(img.id));
+
+                projectImageData.forEach(image => {
+                    const card = document.createElement('div');
+                    card.className = 'preview-card';
+                    const img = document.createElement('img');
+                    img.src = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
+                    card.appendChild(img);
+                    projectImages.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error loading project images:', error);
+            }
+
+            projectCard.appendChild(projectHeader);
+            projectCard.appendChild(projectImages);
+            projectList.appendChild(projectCard);
+        }
+    }
+
+    function deleteProject(projectId) {
+        const project = projects.find(p => p.id === projectId);
+        if (project && confirm(`Are you sure you want to delete the project "${project.name}"?`)) {
+            projects = projects.filter(p => p.id !== projectId);
+            saveProjectsToStorage();
+            displayProjects();
+        }
+    }
+
     // --- Event Listeners ---
 
     navLinks.library.addEventListener('click', (e) => { e.preventDefault(); navigateTo('library'); });
     navLinks.upload.addEventListener('click', (e) => { e.preventDefault(); navigateTo('upload'); });
+    navLinks.project.addEventListener('click', (e) => { e.preventDefault(); navigateTo('project'); });
 
     fileInput.addEventListener('change', (event) => {
         handleFiles(event.target.files);
@@ -750,6 +968,25 @@
 
     // Initialize search input to be completely fresh
     initializeFreshSearchInput();
+
+    // Selection and project event listeners
+    selectAllBtn.addEventListener('click', selectAllImages);
+    deselectAllBtn.addEventListener('click', deselectAllImages);
+    addToProjectBtn.addEventListener('click', showProjectNameModal);
+    cancelProjectBtn.addEventListener('click', hideProjectNameModal);
+    createProjectBtn.addEventListener('click', createProject);
+
+    // Project name input enter key
+    projectNameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            createProject();
+        } else if (e.key === 'Escape') {
+            hideProjectNameModal();
+        }
+    });
+
+    // Load projects on startup
+    loadProjectsFromStorage();
 
 
   </script>
