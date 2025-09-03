@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.4.7" />
+  <link rel="stylesheet" href="styles.css?v=2.5.0" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.4.7</span>
+          <span class="version">v2.5.0</span>
       </div>
 
       <div class="sidebar__footer">
@@ -43,6 +43,7 @@
           <div id="selection-controls" class="selection-controls is-hidden">
             <button id="select-all-btn" class="button" type="button">Select All</button>
             <button id="deselect-all-btn" class="button" type="button">Deselect All</button>
+            <button id="clear-selection-btn" class="button" type="button">Clear Selection</button>
             <button id="add-to-project-btn" class="button button--primary" type="button">Add to Project</button>
             <span id="selection-count" class="selection-count">0 selected</span>
           </div>
@@ -229,6 +230,7 @@
     const selectionControls = document.getElementById('selection-controls');
     const selectAllBtn = document.getElementById('select-all-btn');
     const deselectAllBtn = document.getElementById('deselect-all-btn');
+    const clearSelectionBtn = document.getElementById('clear-selection-btn');
     const addToProjectBtn = document.getElementById('add-to-project-btn');
     const selectionCount = document.getElementById('selection-count');
     const projectNameModal = document.getElementById('project-name-modal');
@@ -252,12 +254,49 @@
         const currentSearchTags = searchTags.map(tag => tag.text);
 
         try {
-            const response = await fetch(`${API_URL}/images?tags=${currentSearchTags.join(',')}&mode=${searchMode}`);
-            const images = await response.json();
+            // Get all images first
+            const allImagesResponse = await fetch(`${API_URL}/images`);
+            const allImages = await allImagesResponse.json();
+
+            let imagesToDisplay = [];
+
+            if (currentSearchTags.length === 0) {
+                // No search tags - show all images
+                imagesToDisplay = allImages;
+            } else {
+                // Get tag-matching images
+                const tagResponse = await fetch(`${API_URL}/images?tags=${currentSearchTags.join(',')}&mode=${searchMode}`);
+                const tagMatchingImages = await tagResponse.json();
+
+                // Get manually selected images that might not match tags
+                const manuallySelectedImages = allImages.filter(img => selectedImages.includes(img.id));
+
+                // Combine tag-matching and manually selected images (remove duplicates)
+                const combinedImageIds = new Set();
+                imagesToDisplay = [];
+
+                // Add tag-matching images
+                tagMatchingImages.forEach(img => {
+                    if (!combinedImageIds.has(img.id)) {
+                        combinedImageIds.add(img.id);
+                        imagesToDisplay.push(img);
+                    }
+                });
+
+                // Add manually selected images that weren't already included
+                manuallySelectedImages.forEach(img => {
+                    if (!combinedImageIds.has(img.id)) {
+                        combinedImageIds.add(img.id);
+                        imagesToDisplay.push(img);
+                    }
+                });
+            }
+
+            const images = imagesToDisplay;
 
             libraryGrid.innerHTML = '';
             libraryImages = []; // Reset library images array
-            selectedImages = []; // Reset selected images
+            // Keep existing selected images - don't reset selectedImages array
 
             // Check which tags have matches and update chip colors
             await updateTagChipColors(currentSearchTags, searchMode);
@@ -299,11 +338,25 @@
                     card.appendChild(tagOverlay);
                 }
 
-                // Auto-select images that have matching tags (when search is active)
+                // Handle selection state
+                const wasAlreadySelected = selectedImages.includes(image.id);
                 const hasMatchingTags = currentSearchTags.length > 0 && matchingTags.length > 0;
-                if (hasMatchingTags) {
+
+                // Keep existing selection OR auto-select if has matching tags
+                if (wasAlreadySelected || hasMatchingTags) {
                     card.classList.add('selected');
-                    selectedImages.push(image.id);
+
+                    // Add visual indicator for selection type
+                    if (wasAlreadySelected && !hasMatchingTags) {
+                        card.classList.add('manual-selection');
+                    } else if (hasMatchingTags) {
+                        card.classList.add('tag-selection');
+                    }
+
+                    // Only add to selectedImages if not already there
+                    if (!wasAlreadySelected) {
+                        selectedImages.push(image.id);
+                    }
                 }
 
                 libraryGrid.appendChild(card);
@@ -657,6 +710,12 @@
         });
 
         updateSelectionState();
+    }
+
+    function clearAllSelections() {
+        // Clear all selections and refresh the library view
+        selectedImages = [];
+        displayLibraryImages();
     }
 
     function showProjectNameModal() {
@@ -1040,6 +1099,7 @@
     // Selection and project event listeners
     selectAllBtn.addEventListener('click', selectAllImages);
     deselectAllBtn.addEventListener('click', deselectAllImages);
+    clearSelectionBtn.addEventListener('click', clearAllSelections);
     addToProjectBtn.addEventListener('click', showProjectNameModal);
     cancelProjectBtn.addEventListener('click', hideProjectNameModal);
     createProjectBtn.addEventListener('click', createProject);
