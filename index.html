@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.9.4" />
+  <link rel="stylesheet" href="styles.css?v=2.9.5" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.9.4</span>
+          <span class="version">v2.9.5</span>
       </div>
 
       <div class="sidebar__footer">
@@ -251,6 +251,7 @@
     let searchTags = []; // Store current search tags as chips
     let selectedImages = []; // Store selected image IDs for project creation
     let tagSelectedImages = []; // Store images selected by tags (always show tag icon)
+    let imageSelectionOrder = {}; // Track selection timestamps for ordering
     let projects = []; // Store created projects
     let isPoolView = false; // Track if we're viewing selection pool
 
@@ -290,8 +291,17 @@
             let imagesToDisplay = [];
 
             if (isPoolView) {
-                // Pool view - show only selected images
+                // Pool view - show only selected images, sorted by selection order (latest first)
                 imagesToDisplay = allImages.filter(img => selectedImages.includes(img.id));
+
+                // Sort by selection timestamp - latest selections first
+                imagesToDisplay.sort((a, b) => {
+                    const timestampA = imageSelectionOrder[a.id] || 0;
+                    const timestampB = imageSelectionOrder[b.id] || 0;
+                    return timestampB - timestampA; // Descending order (latest first)
+                });
+
+                console.log('Pool view - sorted by selection order, latest first');
             } else if (currentSearchTags.length === 0) {
                 // Library view with no search tags - show all images
                 // DON'T clear tagSelectedImages here - preserve historical tag selections
@@ -319,6 +329,16 @@
 
                 // Update tag-selected images (add new ones, keep existing ones)
                 const newTagSelectedImages = tagMatchingImages.map(img => img.id);
+                const currentTimestamp = Date.now();
+
+                // Track selection timestamps for new tag-selected images
+                newTagSelectedImages.forEach(imageId => {
+                    if (!tagSelectedImages.includes(imageId)) {
+                        // New tag selection - record timestamp
+                        imageSelectionOrder[imageId] = currentTimestamp;
+                    }
+                });
+
                 tagSelectedImages = [...new Set([...tagSelectedImages, ...newTagSelectedImages])];
 
                 // Add tag-matching images
@@ -730,6 +750,9 @@
         // Clear all selected images
         selectedImages = [];
 
+        // Clear all selection timestamps
+        imageSelectionOrder = {};
+
         // Remove visual selection styling from all cards
         const cards = document.querySelectorAll('.library-card');
         cards.forEach(card => {
@@ -844,6 +867,9 @@
             selectedImages = selectedImages.filter(id => id !== imageId);
             cardElement.classList.remove('selected', 'manual-selection', 'tag-selection');
 
+            // Remove from selection order tracking
+            delete imageSelectionOrder[imageId];
+
             // If it was tag-selected, keep it as tag-selected but not in selectedImages
             if (isTagSelected) {
                 cardElement.classList.add('selected', 'tag-selection');
@@ -852,6 +878,9 @@
             // Select
             selectedImages.push(imageId);
             cardElement.classList.add('selected');
+
+            // Track selection timestamp for ordering (latest first in pool view)
+            imageSelectionOrder[imageId] = Date.now();
 
             // Update CSS class based on selection type
             cardElement.classList.remove('manual-selection', 'tag-selection');
@@ -949,10 +978,14 @@
     function selectAllImages() {
         const cards = document.querySelectorAll('.library-card');
         selectedImages = [];
+        const currentTimestamp = Date.now();
 
         cards.forEach(card => {
             const imageId = parseInt(card.dataset.imageId);
             selectedImages.push(imageId);
+
+            // Track selection timestamp for ordering
+            imageSelectionOrder[imageId] = currentTimestamp;
 
             // Add selected class while preserving existing selection type classes
             card.classList.add('selected');
@@ -975,6 +1008,12 @@
         }
 
         const cards = document.querySelectorAll('.library-card');
+
+        // Clear selection timestamps for all deselected images
+        selectedImages.forEach(imageId => {
+            delete imageSelectionOrder[imageId];
+        });
+
         selectedImages = [];
 
         cards.forEach(card => {
