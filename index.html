@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.7.7" />
+  <link rel="stylesheet" href="styles.css?v=2.7.9" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.7.7</span>
+          <span class="version">v2.7.9</span>
       </div>
 
       <div class="sidebar__footer">
@@ -884,8 +884,8 @@
 
             // Change button text and behavior based on context
             if (searchTags.length > 0 && !isPoolView) {
-                // Library view with active tags - show "Back to Full Library"
-                viewPoolBtn.textContent = 'Back to Full Library';
+                // Library view with active tags - show "Back to Library"
+                viewPoolBtn.textContent = 'Back to Library';
                 viewPoolBtn.disabled = false;
             } else {
                 // Normal library view - show "View Selection Pool"
@@ -949,7 +949,7 @@
 
 
     function handleViewPoolClick() {
-        if (viewPoolBtn.textContent === 'Back to Full Library') {
+        if (viewPoolBtn.textContent === 'Back to Library') {
             // Show full library but preserve tag selection history
             showFullLibrary();
         } else {

@@ -1,5 +1,5 @@
 @echo off
-title Image Library Launcher v2.7.7
+title Image Library Launcher v2.7.9
 
 echo.
 echo =================================================================
@@ -67,6 +67,18 @@ echo =================================================================
 echo =                 Starting Frontend Server...                  =
 echo =================================================================
 echo.
+
+echo Starting HTTP server on port 8080...
+echo.
+echo Available on:
+echo   http://192.168.10.92:8080
+echo   http://127.0.0.1:8080
+echo   http://172.26.208.1:8080
+echo   http://localhost:8080
+echo.
+echo Hit CTRL-C to stop the server
+echo.
+echo =================================================================
 
 npx http-server -p 8080 -c-1
 
