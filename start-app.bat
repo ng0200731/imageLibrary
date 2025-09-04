@@ -1,5 +1,5 @@
 @echo off
-title Image Library Launcher v2.6.1
+title Image Library Launcher v2.7.5
 
 echo.
 echo =================================================================

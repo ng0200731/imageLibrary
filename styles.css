@@ -763,6 +763,35 @@ body {
   display: none !important;
 }
 
+/* Pool view tags display */
+.pool-view-tags {
+  margin: 10px 0;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border-left: 3px solid #007bff;
+}
+
+.pool-tags-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #495057;
+  margin-right: 8px;
+}
+
+.pool-view-tags .chips {
+  display: inline-block;
+  margin: 0;
+}
+
+.pool-view-tags .chip {
+  background-color: #007bff;
+  color: white;
+  font-size: 11px;
+  padding: 2px 6px;
+  margin: 0 2px;
+}
+
 /* Image Selection */
 .library-card.selected {
   border: 3px solid #4caf50;

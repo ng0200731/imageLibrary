@@ -130,6 +130,75 @@ app.get('/images', (req, res) => {
     }
 });
 
+// --- Projects API Endpoints ---
+
+// Get all projects
+app.get('/projects', (req, res) => {
+    try {
+        const projects = db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
+
+        // Parse image_ids JSON for each project
+        const projectsWithParsedIds = projects.map(project => ({
+            ...project,
+            image_ids: JSON.parse(project.image_ids)
+        }));
+
+        res.json(projectsWithParsedIds);
+    } catch (err) {
+        console.error('Error fetching projects:', err.message);
+        res.status(500).send('Error fetching projects');
+    }
+});
+
+// Create a new project
+app.post('/projects', (req, res) => {
+    try {
+        const { name, image_ids } = req.body;
+
+        if (!name || !image_ids || !Array.isArray(image_ids)) {
+            return res.status(400).send('Project name and image_ids array are required');
+        }
+
+        const stmt = db.prepare('INSERT INTO projects (name, image_ids) VALUES (?, ?)');
+        const result = stmt.run(name, JSON.stringify(image_ids));
+
+        const newProject = {
+            id: result.lastInsertRowid,
+            name: name,
+            image_ids: image_ids,
+            created_at: new Date().toISOString()
+        };
+
+        res.status(201).json(newProject);
+    } catch (err) {
+        console.error('Error creating project:', err.message);
+        res.status(500).send('Error creating project');
+    }
+});
+
+// Delete a project
+app.delete('/projects/:id', (req, res) => {
+    try {
+        const projectId = parseInt(req.params.id);
+
+        if (isNaN(projectId)) {
+            return res.status(400).send('Invalid project ID');
+        }
+
+        const stmt = db.prepare('DELETE FROM projects WHERE id = ?');
+        const result = stmt.run(projectId);
+
+        if (result.changes === 0) {
+            return res.status(404).send('Project not found');
+        }
+
+        res.status(200).send('Project deleted successfully');
+    } catch (err) {
+        console.error('Error deleting project:', err.message);
+        res.status(500).send('Error deleting project');
+    }
+});
+
 app.listen(port, () => {
     console.log(`Server listening at http://localhost:${port}`);
 });

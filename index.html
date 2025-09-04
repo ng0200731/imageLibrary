@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.6.1" />
+  <link rel="stylesheet" href="styles.css?v=2.7.5" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.6.1</span>
+          <span class="version">v2.7.5</span>
       </div>
 
       <div class="sidebar__footer">
@@ -61,6 +61,10 @@
               <button id="clear-all-tags" class="button clear-tags-btn" type="button">Clear All Tags</button>
             </div>
             <div id="library-search-chips" class="chips search-chips"></div>
+            <div id="pool-view-tags" class="pool-view-tags is-hidden">
+              <span class="pool-tags-label">Active filters:</span>
+              <div id="pool-view-chips" class="chips search-chips"></div>
+            </div>
             <div class="search-options">
               <label><input type="radio" name="search-mode" value="AND" checked> AND (all tags must match)</label>
               <label><input type="radio" name="search-mode" value="OR"> OR (any tag can match)</label>
@@ -224,6 +228,8 @@
     const librarySearchInput = document.getElementById('library-search-input');
     const libraryGrid = document.getElementById('library-grid');
     const librarySearchChips = document.getElementById('library-search-chips');
+    const poolViewTags = document.getElementById('pool-view-tags');
+    const poolViewChips = document.getElementById('pool-view-chips');
     const clearAllTagsBtn = document.getElementById('clear-all-tags');
     const searchModeRadios = document.querySelectorAll('input[name="search-mode"]');
 
@@ -247,6 +253,7 @@
     let libraryImages = []; // Store current library images for lightbox navigation
     let searchTags = []; // Store current search tags as chips
     let selectedImages = []; // Store selected image IDs for project creation
+    let tagSelectedImages = []; // Store images selected by tags (always show tag icon)
     let projects = []; // Store created projects
     let isPoolView = false; // Track if we're viewing selection pool
 
@@ -271,7 +278,9 @@
                 imagesToDisplay = allImages.filter(img => selectedImages.includes(img.id));
             } else if (currentSearchTags.length === 0) {
                 // Library view with no search tags - show all images
+                // DON'T clear tagSelectedImages here - preserve historical tag selections
                 imagesToDisplay = allImages;
+                console.log('Library view with no active tags, preserving tagSelectedImages:', tagSelectedImages);
             } else {
                 // Library view with search tags - show tag-matching + manually selected images
                 console.log('Fetching tag-matching images for tags:', currentSearchTags);
@@ -292,6 +301,10 @@
                 const combinedImageIds = new Set();
                 imagesToDisplay = [];
 
+                // Update tag-selected images (add new ones, keep existing ones)
+                const newTagSelectedImages = tagMatchingImages.map(img => img.id);
+                tagSelectedImages = [...new Set([...tagSelectedImages, ...newTagSelectedImages])];
+
                 // Add tag-matching images
                 tagMatchingImages.forEach(img => {
                     if (!combinedImageIds.has(img.id)) {
@@ -309,6 +322,7 @@
                 });
 
                 console.log('Combined images to display:', imagesToDisplay.length);
+                console.log('Tag-selected images:', tagSelectedImages);
             }
 
             const images = imagesToDisplay;
@@ -354,39 +368,59 @@
 
                 card.appendChild(img);
 
-                // Add tag overlay if there are matching tags
+                // Add tag overlay for matching tags OR for tag-selected images
                 const matchingTags = getMatchingTags(image.tags || [], currentSearchTags);
+                const isTagSelected = tagSelectedImages.includes(image.id);
+
                 if (matchingTags.length > 0) {
+                    // Show overlay for current search matches
                     const tagOverlay = document.createElement('div');
                     tagOverlay.className = 'tag-overlay';
                     tagOverlay.textContent = matchingTags.join(', ');
                     card.appendChild(tagOverlay);
+                } else if (isTagSelected && (currentSearchTags.length === 0 || isPoolView)) {
+                    // Show overlay for historically tag-selected images when:
+                    // - no active search tags (library view), OR
+                    // - in pool view (always show for tag-selected images)
+                    const imageTags = image.tags || [];
+                    if (imageTags.length > 0) {
+                        const tagOverlay = document.createElement('div');
+                        tagOverlay.className = 'tag-overlay';
+                        tagOverlay.textContent = imageTags.slice(0, 3).join(', '); // Show first 3 tags
+                        card.appendChild(tagOverlay);
+                    }
                 }
 
                 // Handle selection state
                 const wasAlreadySelected = selectedImages.includes(image.id);
                 const hasMatchingTags = currentSearchTags.length > 0 && matchingTags.length > 0;
+                // isTagSelected already calculated above
+
+
 
                 if (isPoolView) {
                     // In pool view, all displayed images are selected and locked
                     card.classList.add('selected', 'pool-view');
 
-                    // Add visual indicator for selection type
-                    if (wasAlreadySelected && !hasMatchingTags) {
-                        card.classList.add('manual-selection');
-                    } else if (hasMatchingTags) {
+                    // Add visual indicator for selection type - prioritize tag selection
+                    if (isTagSelected) {
                         card.classList.add('tag-selection');
+                    } else if (wasAlreadySelected) {
+                        card.classList.add('manual-selection');
                     }
                 } else {
                     // In library view, handle normal selection logic
                     if (wasAlreadySelected || hasMatchingTags) {
                         card.classList.add('selected');
 
-                        // Add visual indicator for selection type
-                        if (wasAlreadySelected && !hasMatchingTags) {
-                            card.classList.add('manual-selection');
+                        // Add visual indicator for selection type - prioritize tag selection
+                        // Key fix: Check isTagSelected FIRST, regardless of current search tags
+                        if (isTagSelected) {
+                            card.classList.add('tag-selection');
                         } else if (hasMatchingTags) {
                             card.classList.add('tag-selection');
+                        } else if (wasAlreadySelected) {
+                            card.classList.add('manual-selection');
                         }
 
                         // Only add to selectedImages if not already there
@@ -411,6 +445,9 @@
                 }
                 updateButtonVisibility(); // Ensure buttons are correct even when no selections
             }
+
+            // Update pool view tags display
+            updatePoolViewTags();
 
             console.log('displayLibraryImages completed, selectedImages at end:', selectedImages);
         } catch (error) {
@@ -650,7 +687,9 @@
     }
 
     function clearAllSearchChips() {
+        console.log('clearAllSearchChips called - clearing tagSelectedImages:', tagSelectedImages);
         searchTags = [];
+        tagSelectedImages = []; // Clear tag-selected images
         librarySearchChips.innerHTML = '';
         librarySearchInput.value = '';
         updateClearButtonState();
@@ -735,15 +774,29 @@
         }
 
         const isSelected = selectedImages.includes(imageId);
+        const isTagSelected = tagSelectedImages.includes(imageId);
 
         if (isSelected) {
             // Deselect
             selectedImages = selectedImages.filter(id => id !== imageId);
-            cardElement.classList.remove('selected');
+            cardElement.classList.remove('selected', 'manual-selection', 'tag-selection');
+
+            // If it was tag-selected, keep it as tag-selected but not in selectedImages
+            if (isTagSelected) {
+                cardElement.classList.add('selected', 'tag-selection');
+            }
         } else {
             // Select
             selectedImages.push(imageId);
             cardElement.classList.add('selected');
+
+            // Update CSS class based on selection type
+            cardElement.classList.remove('manual-selection', 'tag-selection');
+            if (isTagSelected) {
+                cardElement.classList.add('tag-selection');
+            } else {
+                cardElement.classList.add('manual-selection');
+            }
         }
 
         updateSelectionState();
@@ -762,6 +815,24 @@
         const hasActiveTags = searchTags.length > 0;
         const hasSelections = selectedImages.length > 0;
         return isPoolView || (hasActiveTags && hasSelections);
+    }
+
+    function updatePoolViewTags() {
+        if (isPoolView && searchTags.length > 0) {
+            // Show active tags in pool view
+            poolViewTags.classList.remove('is-hidden');
+            poolViewChips.innerHTML = '';
+
+            searchTags.forEach(tag => {
+                const chip = document.createElement('span');
+                chip.className = 'chip';
+                chip.textContent = tag.text;
+                poolViewChips.appendChild(chip);
+            });
+        } else {
+            // Hide pool view tags
+            poolViewTags.classList.add('is-hidden');
+        }
     }
 
     function updateButtonVisibility() {
@@ -793,12 +864,12 @@
             viewPoolBtn.classList.remove('is-hidden');
 
             // Change button text and behavior based on context
-            if (showingSelectionPool) {
-                // Currently showing selection pool (filtered view) - change to "Back to Full Library"
+            if (searchTags.length > 0 && !isPoolView) {
+                // Library view with active tags - show "Back to Full Library"
                 viewPoolBtn.textContent = 'Back to Full Library';
-                viewPoolBtn.disabled = false; // Always enabled when showing filtered view
+                viewPoolBtn.disabled = false;
             } else {
-                // Currently showing full library - change to "View Selection Pool"
+                // Normal library view - show "View Selection Pool"
                 viewPoolBtn.textContent = 'View Selection Pool';
                 viewPoolBtn.disabled = !hasSelections; // Dimmed when no selections
             }
@@ -859,11 +930,11 @@
 
 
     function handleViewPoolClick() {
-        if (isShowingSelectionPool()) {
-            // Currently showing selection pool - go back to full library
-            backToFullLibrary();
+        if (viewPoolBtn.textContent === 'Back to Full Library') {
+            // Show full library but preserve tag selection history
+            showFullLibrary();
         } else {
-            // Currently showing full library - view selection pool
+            // View selection pool
             viewSelectionPool();
         }
     }
@@ -886,12 +957,32 @@
         console.log('=== viewSelectionPool END ===');
     }
 
+    function showFullLibrary() {
+        console.log('=== showFullLibrary START ===');
+        console.log('Showing full library while preserving tag history');
+
+        // Clear active search tags but preserve tag selection history
+        searchTags = [];
+        // DON'T clear tagSelectedImages - preserve tag selection status
+        librarySearchChips.innerHTML = '';
+        librarySearchInput.value = '';
+
+        // Ensure we're in library view
+        isPoolView = false;
+
+        // Refresh to show full library
+        displayLibraryImages();
+        console.log('=== showFullLibrary END ===');
+    }
+
     function backToFullLibrary() {
         console.log('=== backToFullLibrary START ===');
-        console.log('Clearing search tags and returning to full library');
+        console.log('Returning to full library while preserving tag history');
+        console.log('backToFullLibrary called - preserving tagSelectedImages:', tagSelectedImages);
 
         // Clear search tags to show full library
         searchTags = [];
+        // DON'T clear tagSelectedImages - preserve tag selection history for overlays
         librarySearchChips.innerHTML = '';
         librarySearchInput.value = '';
 
@@ -908,6 +999,7 @@
             console.log('=== backToLibrary START ===');
             console.log('selectedImages before:', selectedImages);
             console.log('searchTags before:', searchTags);
+            console.log('tagSelectedImages before:', tagSelectedImages);
             console.log('isPoolView before:', isPoolView);
 
             // Safety check: Don't execute if button should be disabled
@@ -932,12 +1024,14 @@
             console.log('Set isPoolView to false');
 
             // Don't clear search tags - preserve them
+            // Don't clear tagSelectedImages - preserve tag selection status
             // Tags should only be removed when user explicitly removes them
 
             // Refresh library view (will show tag-filtered + manual selections)
             console.log('Calling displayLibraryImages...');
             displayLibraryImages().then(() => {
                 console.log('displayLibraryImages completed successfully');
+                console.log('tagSelectedImages after:', tagSelectedImages);
                 console.log('=== backToLibrary END ===');
             }).catch(error => {
                 console.error('Error in displayLibraryImages:', error);
@@ -970,7 +1064,7 @@
         projectNameInput.value = '';
     }
 
-    function createProject() {
+    async function createProject() {
         const projectName = projectNameInput.value.trim();
         console.log('Creating project with selected images:', selectedImages);
 
@@ -994,33 +1088,81 @@
         // Store the count before clearing selection
         const imageCount = selectedImages.length;
 
-        // Create new project with current selected images
-        const newProject = {
-            id: Date.now(),
-            name: projectName,
-            images: [...selectedImages], // Create a copy of the array
-            createdAt: new Date().toISOString()
-        };
+        try {
+            const newProject = await saveProjectToAPI(projectName, [...selectedImages]);
+            displayProjects();
 
-        projects.push(newProject);
-        saveProjectsToStorage();
-        displayProjects();
+            // Hide modal first, then clear selection
+            hideProjectNameModal();
+            deselectAllImages();
 
-        // Hide modal first, then clear selection
-        hideProjectNameModal();
-        deselectAllImages();
-
-        alert(`Project "${projectName}" created with ${imageCount} images.`);
+            alert(`Project "${projectName}" created with ${imageCount} images.`);
+        } catch (error) {
+            alert('Failed to create project. Please try again.');
+        }
     }
 
-    function saveProjectsToStorage() {
-        localStorage.setItem('imageLibraryProjects', JSON.stringify(projects));
+    async function loadProjectsFromAPI() {
+        try {
+            const response = await fetch(`${API_URL}/projects`);
+            if (response.ok) {
+                projects = await response.json();
+                console.log('Loaded projects from API:', projects.length);
+            } else {
+                console.error('Failed to load projects:', response.statusText);
+                projects = [];
+            }
+        } catch (error) {
+            console.error('Error loading projects:', error);
+            projects = [];
+        }
     }
 
-    function loadProjectsFromStorage() {
-        const stored = localStorage.getItem('imageLibraryProjects');
-        if (stored) {
-            projects = JSON.parse(stored);
+    async function saveProjectToAPI(projectName, imageIds) {
+        try {
+            const response = await fetch(`${API_URL}/projects`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: projectName,
+                    image_ids: imageIds
+                })
+            });
+
+            if (response.ok) {
+                const newProject = await response.json();
+                projects.push(newProject);
+                console.log('Project saved to API:', newProject);
+                return newProject;
+            } else {
+                console.error('Failed to save project:', response.statusText);
+                throw new Error('Failed to save project');
+            }
+        } catch (error) {
+            console.error('Error saving project:', error);
+            throw error;
+        }
+    }
+
+    async function deleteProjectFromAPI(projectId) {
+        try {
+            const response = await fetch(`${API_URL}/projects/${projectId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                projects = projects.filter(p => p.id !== projectId);
+                console.log('Project deleted from API:', projectId);
+                return true;
+            } else {
+                console.error('Failed to delete project:', response.statusText);
+                throw new Error('Failed to delete project');
+            }
+        } catch (error) {
+            console.error('Error deleting project:', error);
+            throw error;
         }
     }
 
@@ -1052,11 +1194,11 @@
 
             const imageCount = document.createElement('span');
             imageCount.className = 'project-image-count';
-            imageCount.textContent = `${project.images.length} images`;
+            imageCount.textContent = `${project.image_ids.length} images`;
 
             const createdDate = document.createElement('span');
             createdDate.className = 'project-created-date';
-            const date = new Date(project.createdAt);
+            const date = new Date(project.created_at);
             createdDate.textContent = `Created ${date.toLocaleDateString()} at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 
             projectMeta.appendChild(imageCount);
@@ -1084,7 +1226,7 @@
             try {
                 const response = await fetch(`${API_URL}/images`);
                 const allImages = await response.json();
-                const projectImageData = allImages.filter(img => project.images.includes(img.id));
+                const projectImageData = allImages.filter(img => project.image_ids.includes(img.id));
 
                 // Show first 6 images as preview
                 const previewImages = projectImageData.slice(0, 6);
@@ -1112,12 +1254,15 @@
         }
     }
 
-    function deleteProject(projectId) {
+    async function deleteProject(projectId) {
         const project = projects.find(p => p.id === projectId);
         if (project && confirm(`Are you sure you want to delete the project "${project.name}"?`)) {
-            projects = projects.filter(p => p.id !== projectId);
-            saveProjectsToStorage();
-            displayProjects();
+            try {
+                await deleteProjectFromAPI(projectId);
+                displayProjects();
+            } catch (error) {
+                alert('Failed to delete project. Please try again.');
+            }
         }
     }
 
@@ -1351,7 +1496,9 @@
     });
 
     // Load projects on startup
-    loadProjectsFromStorage();
+    loadProjectsFromAPI().then(() => {
+        displayProjects();
+    });
 
 
   </script>

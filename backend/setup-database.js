@@ -18,6 +18,12 @@ function setupDatabase() {
             FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE,
             PRIMARY KEY (image_id, tag_id)
         );
+        CREATE TABLE IF NOT EXISTS projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            image_ids TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     `);
     console.log('Database setup complete.');
 }
