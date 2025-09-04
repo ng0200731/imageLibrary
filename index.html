@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.9.5" />
+  <link rel="stylesheet" href="styles.css?v=2.9.6" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.9.5</span>
+          <span class="version">v2.9.6</span>
       </div>
 
       <div class="sidebar__footer">
@@ -987,14 +987,21 @@
             // Track selection timestamp for ordering
             imageSelectionOrder[imageId] = currentTimestamp;
 
-            // Add selected class while preserving existing selection type classes
+            // Add selected class
             card.classList.add('selected');
 
             // Remove pool-deselected class to restore red borders
             card.classList.remove('pool-deselected');
 
-            // In Selection Pool, preserve existing selection type icons
-            // Don't add new selection type classes - keep existing manual-selection or tag-selection
+            // Determine and apply the correct selection type class
+            const isTagSelected = tagSelectedImages.includes(imageId);
+            card.classList.remove('manual-selection', 'tag-selection');
+
+            if (isTagSelected) {
+                card.classList.add('tag-selection');
+            } else {
+                card.classList.add('manual-selection');
+            }
         });
 
         updateSelectionState();

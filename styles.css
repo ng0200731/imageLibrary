@@ -798,7 +798,7 @@ body {
   box-shadow: 0 0 12px rgba(255, 0, 0, 0.4);
 }
 
-.library-card.selected::after {
+.library-card.selected:not(.manual-selection):not(.tag-selection)::after {
   content: '✓';
   position: absolute;
   top: 4px;
@@ -823,8 +823,21 @@ body {
 }
 
 .library-card.manual-selection::after {
-  background: #ff0000;
   content: '👆';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #ff0000;
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 10;
 }
 
 /* Tag selection - now uses red for obvious visibility */
@@ -834,8 +847,21 @@ body {
 }
 
 .library-card.tag-selection::after {
-  background: #ff0000;
   content: '🏷️';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #ff0000;
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 10;
 }
 
 /* Pool view deselected state - keeps icons but removes red borders */
