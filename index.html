@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.7.5" />
+  <link rel="stylesheet" href="styles.css?v=2.7.7" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.7.5</span>
+          <span class="version">v2.7.7</span>
       </div>
 
       <div class="sidebar__footer">
@@ -58,7 +58,7 @@
                      autocapitalize="off"
                      spellcheck="false"
                      data-form-type="other">
-              <button id="clear-all-tags" class="button clear-tags-btn" type="button">Clear All Tags</button>
+              <button id="clear-all-tags" class="button clear-tags-btn" type="button">Clear All</button>
             </div>
             <div id="library-search-chips" class="chips search-chips"></div>
             <div id="pool-view-tags" class="pool-view-tags is-hidden">
@@ -687,17 +687,35 @@
     }
 
     function clearAllSearchChips() {
-        console.log('clearAllSearchChips called - clearing tagSelectedImages:', tagSelectedImages);
+        console.log('clearAllSearchChips called - clearing everything and returning to main library');
+        console.log('Before clear - searchTags:', searchTags.length, 'selectedImages:', selectedImages.length, 'tagSelectedImages:', tagSelectedImages.length, 'isPoolView:', isPoolView);
+
+        // Clear all search tags
         searchTags = [];
         tagSelectedImages = []; // Clear tag-selected images
         librarySearchChips.innerHTML = '';
         librarySearchInput.value = '';
+
+        // Clear all selected images
+        selectedImages = [];
+
+        // Ensure we're in main library view (not pool view)
+        isPoolView = false;
+
+        // Update UI states
         updateClearButtonState();
+        updateSelectionState();
+
+        // Refresh to show full library with no selections or filters
         displayLibraryImages();
+
+        console.log('After clear - returned to main library with no selections or filters');
+        console.log('Final state - searchTags:', searchTags.length, 'selectedImages:', selectedImages.length, 'isPoolView:', isPoolView);
     }
 
     function updateClearButtonState() {
-        clearAllTagsBtn.disabled = searchTags.length === 0;
+        // Enable "Clear All" button if there are search tags OR selected images
+        clearAllTagsBtn.disabled = searchTags.length === 0 && selectedImages.length === 0;
     }
 
     function initializeFreshSearchInput() {
@@ -806,6 +824,7 @@
         selectionCount.textContent = `${selectedImages.length} selected`;
         addToProjectBtn.disabled = selectedImages.length === 0;
         updateButtonVisibility();
+        updateClearButtonState(); // Update Clear All button state when selections change
     }
 
     function isShowingSelectionPool() {
@@ -1419,7 +1438,7 @@
             handleSearchTagCommit();
         }
         // Note: Backspace functionality for removing tag chips has been disabled
-        // Users must use the "x" button on individual chips or "Clear All Tags" button
+        // Users must use the "x" button on individual chips or "Clear All" button
     });
 
     // Also handle input changes for real-time search
@@ -1466,7 +1485,7 @@
 
     searchModeRadios.forEach(radio => radio.addEventListener('change', displayLibraryImages));
 
-    // Clear all tags button
+    // Clear all button (clears both tags and selected images)
     clearAllTagsBtn.addEventListener('click', () => {
         clearAllSearchChips();
     });
