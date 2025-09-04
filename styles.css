@@ -794,8 +794,8 @@ body {
 
 /* Image Selection */
 .library-card.selected {
-  border: 3px solid #4caf50;
-  box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
+  border: 5px solid #ff0000;
+  box-shadow: 0 0 12px rgba(255, 0, 0, 0.4);
 }
 
 .library-card.selected::after {
@@ -803,7 +803,7 @@ body {
   position: absolute;
   top: 4px;
   right: 4px;
-  background: #4caf50;
+  background: #ff0000;
   color: white;
   width: 20px;
   height: 20px;
@@ -816,25 +816,25 @@ body {
   z-index: 10;
 }
 
-/* Manual selection (blue) */
+/* Manual selection - now uses red for obvious visibility */
 .library-card.manual-selection {
-  border: 3px solid #2196f3;
-  box-shadow: 0 0 8px rgba(33, 150, 243, 0.3);
+  border: 5px solid #ff0000;
+  box-shadow: 0 0 12px rgba(255, 0, 0, 0.4);
 }
 
 .library-card.manual-selection::after {
-  background: #2196f3;
+  background: #ff0000;
   content: '👆';
 }
 
-/* Tag selection (green) - default selected styling */
+/* Tag selection - now uses red for obvious visibility */
 .library-card.tag-selection {
-  border: 3px solid #4caf50;
-  box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
+  border: 5px solid #ff0000;
+  box-shadow: 0 0 12px rgba(255, 0, 0, 0.4);
 }
 
 .library-card.tag-selection::after {
-  background: #4caf50;
+  background: #ff0000;
   content: '🏷️';
 }
 
