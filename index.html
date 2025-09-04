@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.8.2" />
+  <link rel="stylesheet" href="styles.css?v=2.8.3" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.8.2</span>
+          <span class="version">v2.8.3</span>
       </div>
 
       <div class="sidebar__footer">
@@ -980,27 +980,17 @@
         console.log('=== showFullLibrary START ===');
         console.log('Showing full library while preserving green tag chips for user reference');
 
-        // Preserve search tags and chips for user reference
-        const preservedSearchTags = [...searchTags];
-        const preservedChipsHTML = librarySearchChips.innerHTML;
-        const preservedInputValue = librarySearchInput.value;
-
-        // Temporarily clear search tags to show ALL images (provides visual feedback)
+        // Clear search tags to show ALL images (provides visual feedback)
         searchTags = [];
 
         // DON'T clear tagSelectedImages - preserve tag selection status for overlays
-        // Keep chips and input visible for user reference
+        // DON'T clear chips and input - keep them visible for user reference
 
         // Ensure we're in library view
         isPoolView = false;
 
         // Refresh to show full library (all images)
-        displayLibraryImages().then(() => {
-            // Restore search tags and UI for user reference (but don't reapply filtering)
-            searchTags = preservedSearchTags;
-            // Keep chips and input visible so user can see what tags were active
-            console.log('Full library displayed with preserved tag chips for reference');
-        });
+        displayLibraryImages();
 
         console.log('=== showFullLibrary END ===');
     }
@@ -1010,27 +1000,17 @@
         console.log('Returning to full library while preserving green tag chips for user reference');
         console.log('backToFullLibrary called - preserving tagSelectedImages:', tagSelectedImages);
 
-        // Preserve search tags and chips for user reference
-        const preservedSearchTags = [...searchTags];
-        const preservedChipsHTML = librarySearchChips.innerHTML;
-        const preservedInputValue = librarySearchInput.value;
-
-        // Temporarily clear search tags to show ALL images (provides visual feedback)
+        // Clear search tags to show ALL images (provides visual feedback)
         searchTags = [];
 
         // DON'T clear tagSelectedImages - preserve tag selection history for overlays
-        // Keep chips and input visible for user reference
+        // DON'T clear chips and input - keep them visible for user reference
 
         // Ensure we're in library view
         isPoolView = false;
 
         // Refresh to show full library (all images)
-        displayLibraryImages().then(() => {
-            // Restore search tags for user reference (but don't reapply filtering)
-            searchTags = preservedSearchTags;
-            // Keep chips and input visible so user can see what tags were active
-            console.log('Full library displayed with preserved tag chips for reference');
-        });
+        displayLibraryImages();
 
         console.log('=== backToFullLibrary END ===');
     }
