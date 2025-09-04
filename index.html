@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.9.6" />
+  <link rel="stylesheet" href="styles.css?v=2.9.8" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.9.6</span>
+          <span class="version">v2.9.8</span>
       </div>
 
       <div class="sidebar__footer">
@@ -405,15 +405,19 @@
                     e.stopPropagation();
                     console.log('Image clicked:', image.id, 'isPoolView:', isPoolView, 'index:', index);
 
-                    if (isPoolView) {
-                        // In pool view, ALWAYS open lightbox for consistent behavior
-                        console.log('Opening lightbox for index:', index);
-                        openLibraryLightbox(index);
-                    } else {
-                        // In library view, toggle selection
-                        toggleImageSelection(image.id, card);
-                    }
+                    // In both library and pool view, allow selection toggling
+                    toggleImageSelection(image.id, card);
                 });
+
+                // Add double-click handler for lightbox in pool view
+                if (isPoolView) {
+                    img.addEventListener('dblclick', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Image double-clicked, opening lightbox for index:', index);
+                        openLibraryLightbox(index);
+                    });
+                }
 
                 // Add cursor pointer style - always clickable in pool view
                 img.style.cursor = 'pointer';
@@ -854,26 +858,20 @@
     // --- Selection and Project Management Functions ---
 
     function toggleImageSelection(imageId, cardElement) {
-        // In pool view, don't allow deselection
-        if (isPoolView) {
-            return;
-        }
+        // Allow selection/deselection in both library and pool view
 
         const isSelected = selectedImages.includes(imageId);
         const isTagSelected = tagSelectedImages.includes(imageId);
 
         if (isSelected) {
-            // Deselect
+            // Deselect - allow full deselection for both manual and tag-selected images
             selectedImages = selectedImages.filter(id => id !== imageId);
             cardElement.classList.remove('selected', 'manual-selection', 'tag-selection');
 
             // Remove from selection order tracking
             delete imageSelectionOrder[imageId];
 
-            // If it was tag-selected, keep it as tag-selected but not in selectedImages
-            if (isTagSelected) {
-                cardElement.classList.add('selected', 'tag-selection');
-            }
+            // Don't automatically re-select tag images - allow them to be fully deselected
         } else {
             // Select
             selectedImages.push(imageId);
