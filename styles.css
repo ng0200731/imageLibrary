@@ -838,6 +838,27 @@ body {
   content: '🏷️';
 }
 
+/* Pool view deselected state - keeps icons but removes red borders */
+.library-card.pool-deselected.manual-selection {
+  border: 2px solid #ddd !important;
+  box-shadow: none !important;
+}
+
+.library-card.pool-deselected.tag-selection {
+  border: 2px solid #ddd !important;
+  box-shadow: none !important;
+}
+
+.library-card.pool-deselected.manual-selection::after {
+  background: #666 !important;
+  content: '👆';
+}
+
+.library-card.pool-deselected.tag-selection::after {
+  background: #666 !important;
+  content: '🏷️';
+}
+
 /* Pool View Styles */
 .library-card.pool-view {
   position: relative;

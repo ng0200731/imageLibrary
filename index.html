@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.9.0" />
+  <link rel="stylesheet" href="styles.css?v=2.9.4" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.9.0</span>
+          <span class="version">v2.9.4</span>
       </div>
 
       <div class="sidebar__footer">
@@ -264,6 +264,17 @@
         }
     }
 
+    function updateSearchInputVisibility() {
+        const searchInputRow = document.querySelector('.search-input-row');
+        if (isPoolView || (searchTags.length > 0 && selectedImages.length > 0)) {
+            // Hide search input in Selection Pool view
+            searchInputRow.style.display = 'none';
+        } else {
+            // Show search input in regular Library view
+            searchInputRow.style.display = 'flex';
+        }
+    }
+
     async function displayLibraryImages() {
         console.log('displayLibraryImages called, selectedImages at start:', selectedImages);
         console.log('isPoolView:', isPoolView);
@@ -339,6 +350,9 @@
                 updateLibraryTitle(false); // Full library
             }
 
+            // Update search input visibility based on view type
+            updateSearchInputVisibility();
+
             const images = imagesToDisplay;
 
             libraryGrid.innerHTML = '';
@@ -396,15 +410,14 @@
                 const isTagSelected = tagSelectedImages.includes(image.id);
 
                 if (matchingTags.length > 0) {
-                    // Show overlay for current search matches
+                    // Show overlay for current search matches (priority display)
                     const tagOverlay = document.createElement('div');
                     tagOverlay.className = 'tag-overlay';
                     tagOverlay.textContent = matchingTags.join(', ');
                     card.appendChild(tagOverlay);
-                } else if (isTagSelected && (currentSearchTags.length === 0 || isPoolView)) {
-                    // Show overlay for historically tag-selected images when:
-                    // - no active search tags (library view), OR
-                    // - in pool view (always show for tag-selected images)
+                } else if (isTagSelected) {
+                    // ALWAYS show overlay for historically tag-selected images
+                    // This ensures ALL tagged images maintain their tag overlays
                     const imageTags = image.tags || [];
                     if (imageTags.length > 0) {
                         const tagOverlay = document.createElement('div');
@@ -702,9 +715,7 @@
         displayLibraryImages();
     }
 
-    function updateSearchInput() {
-        librarySearchInput.value = searchTags.map(tag => tag.text).join(', ');
-    }
+
 
     function clearAllSearchChips() {
         console.log('clearAllSearchChips called - clearing everything and returning to main library');
@@ -714,7 +725,7 @@
         searchTags = [];
         tagSelectedImages = []; // Clear tag-selected images
         librarySearchChips.innerHTML = '';
-        librarySearchInput.value = '';
+
 
         // Clear all selected images
         selectedImages = [];
@@ -739,6 +750,12 @@
 
         console.log('After clear - returned to main library with no selections or filters');
         console.log('Final state - searchTags:', searchTags.length, 'selectedImages:', selectedImages.length, 'isPoolView:', isPoolView);
+    }
+
+
+
+    function updateSearchInput() {
+        librarySearchInput.value = searchTags.map(tag => tag.text).join(', ');
     }
 
     function updateClearButtonState() {
@@ -940,6 +957,9 @@
             // Add selected class while preserving existing selection type classes
             card.classList.add('selected');
 
+            // Remove pool-deselected class to restore red borders
+            card.classList.remove('pool-deselected');
+
             // In Selection Pool, preserve existing selection type icons
             // Don't add new selection type classes - keep existing manual-selection or tag-selection
         });
@@ -959,14 +979,15 @@
 
         cards.forEach(card => {
             if (isPoolView) {
-                // In Selection Pool, only remove 'selected' class to hide red borders
-                // Keep selection type classes (manual-selection, tag-selection) for icon preservation
+                // In Selection Pool, remove red borders but keep icons
                 card.classList.remove('selected');
+                card.classList.add('pool-deselected');
             } else {
                 // In Library view, remove all selection-related classes completely
                 card.classList.remove('selected');
                 card.classList.remove('manual-selection');
                 card.classList.remove('tag-selection');
+                card.classList.remove('pool-deselected');
             }
         });
 
@@ -1472,6 +1493,10 @@
         }
     });
 
+
+
+
+
     // Handle tag input with Enter, Tab, or comma
     librarySearchInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === 'Tab' || e.key === ',') {
@@ -1533,6 +1558,10 @@
 
     // Initialize button state
     updateClearButtonState();
+
+
+
+
 
     // Initialize search input to be completely fresh
     initializeFreshSearchInput();
