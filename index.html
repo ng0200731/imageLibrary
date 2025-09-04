@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.8.7" />
+  <link rel="stylesheet" href="styles.css?v=2.9.0" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.8.7</span>
+          <span class="version">v2.9.0</span>
       </div>
 
       <div class="sidebar__footer">
@@ -61,10 +61,6 @@
               <button id="clear-all-tags" class="button clear-tags-btn" type="button">Clear All</button>
             </div>
             <div id="library-search-chips" class="chips search-chips"></div>
-            <div id="pool-view-tags" class="pool-view-tags is-hidden">
-              <span class="pool-tags-label">Active filters:</span>
-              <div id="pool-view-chips" class="chips search-chips"></div>
-            </div>
             <div class="search-options">
               <label><input type="radio" name="search-mode" value="AND" checked> AND (all tags must match)</label>
               <label><input type="radio" name="search-mode" value="OR"> OR (any tag can match)</label>
@@ -231,8 +227,6 @@
 
     // Header title element for dynamic updates
     const libraryTitle = document.querySelector('#page-library .title');
-    const poolViewTags = document.getElementById('pool-view-tags');
-    const poolViewChips = document.getElementById('pool-view-chips');
     const clearAllTagsBtn = document.getElementById('clear-all-tags');
     const searchModeRadios = document.querySelectorAll('input[name="search-mode"]');
 
@@ -374,8 +368,12 @@
                 // Add click event listener based on view mode
                 img.addEventListener('click', (e) => {
                     e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Image clicked:', image.id, 'isPoolView:', isPoolView, 'index:', index);
+
                     if (isPoolView) {
-                        // In pool view, open lightbox
+                        // In pool view, ALWAYS open lightbox for consistent behavior
+                        console.log('Opening lightbox for index:', index);
                         openLibraryLightbox(index);
                     } else {
                         // In library view, toggle selection
@@ -383,8 +381,13 @@
                     }
                 });
 
-                // Add cursor pointer style
+                // Add cursor pointer style - always clickable in pool view
                 img.style.cursor = 'pointer';
+
+                // Ensure card is also clickable in pool view
+                if (isPoolView) {
+                    card.style.cursor = 'pointer';
+                }
 
                 card.appendChild(img);
 
@@ -465,9 +468,6 @@
                 }
                 updateButtonVisibility(); // Ensure buttons are correct even when no selections
             }
-
-            // Update pool view tags display
-            updatePoolViewTags();
 
             console.log('displayLibraryImages completed, selectedImages at end:', selectedImages);
         } catch (error) {
@@ -864,23 +864,7 @@
         return isPoolView || (hasActiveTags && hasSelections);
     }
 
-    function updatePoolViewTags() {
-        if (isPoolView && searchTags.length > 0) {
-            // Show active tags in pool view
-            poolViewTags.classList.remove('is-hidden');
-            poolViewChips.innerHTML = '';
 
-            searchTags.forEach(tag => {
-                const chip = document.createElement('span');
-                chip.className = 'chip';
-                chip.textContent = tag.text;
-                poolViewChips.appendChild(chip);
-            });
-        } else {
-            // Hide pool view tags
-            poolViewTags.classList.add('is-hidden');
-        }
-    }
 
     function updateButtonVisibility() {
         console.log('updateButtonVisibility called, isPoolView:', isPoolView, 'selectedImages.length:', selectedImages.length);
@@ -952,7 +936,12 @@
         cards.forEach(card => {
             const imageId = parseInt(card.dataset.imageId);
             selectedImages.push(imageId);
+
+            // Add selected class while preserving existing selection type classes
             card.classList.add('selected');
+
+            // In Selection Pool, preserve existing selection type icons
+            // Don't add new selection type classes - keep existing manual-selection or tag-selection
         });
 
         updateSelectionState();
@@ -969,10 +958,16 @@
         selectedImages = [];
 
         cards.forEach(card => {
-            // Remove all selection-related classes to clear red borders
-            card.classList.remove('selected');
-            card.classList.remove('manual-selection');
-            card.classList.remove('tag-selection');
+            if (isPoolView) {
+                // In Selection Pool, only remove 'selected' class to hide red borders
+                // Keep selection type classes (manual-selection, tag-selection) for icon preservation
+                card.classList.remove('selected');
+            } else {
+                // In Library view, remove all selection-related classes completely
+                card.classList.remove('selected');
+                card.classList.remove('manual-selection');
+                card.classList.remove('tag-selection');
+            }
         });
 
         updateSelectionState();
