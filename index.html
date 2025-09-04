@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.8.3" />
+  <link rel="stylesheet" href="styles.css?v=2.8.7" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.8.3</span>
+          <span class="version">v2.8.7</span>
       </div>
 
       <div class="sidebar__footer">
@@ -228,6 +228,9 @@
     const librarySearchInput = document.getElementById('library-search-input');
     const libraryGrid = document.getElementById('library-grid');
     const librarySearchChips = document.getElementById('library-search-chips');
+
+    // Header title element for dynamic updates
+    const libraryTitle = document.querySelector('#page-library .title');
     const poolViewTags = document.getElementById('pool-view-tags');
     const poolViewChips = document.getElementById('pool-view-chips');
     const clearAllTagsBtn = document.getElementById('clear-all-tags');
@@ -258,6 +261,14 @@
     let isPoolView = false; // Track if we're viewing selection pool
 
     // --- Function Definitions ---
+
+    function updateLibraryTitle(isPoolView = false) {
+        if (isPoolView) {
+            libraryTitle.textContent = 'Image Library (Selection Pool)';
+        } else {
+            libraryTitle.textContent = 'Image Library';
+        }
+    }
 
     async function displayLibraryImages() {
         console.log('displayLibraryImages called, selectedImages at start:', selectedImages);
@@ -323,6 +334,15 @@
 
                 console.log('Combined images to display:', imagesToDisplay.length);
                 console.log('Tag-selected images:', tagSelectedImages);
+            }
+
+            // Update header based on view type
+            if (isPoolView) {
+                updateLibraryTitle(true); // Selection Pool
+            } else if (currentSearchTags.length > 0) {
+                updateLibraryTitle(true); // Filtered view (also Selection Pool)
+            } else {
+                updateLibraryTitle(false); // Full library
             }
 
             const images = imagesToDisplay;
@@ -699,6 +719,14 @@
         // Clear all selected images
         selectedImages = [];
 
+        // Remove visual selection styling from all cards
+        const cards = document.querySelectorAll('.library-card');
+        cards.forEach(card => {
+            card.classList.remove('selected');
+            card.classList.remove('manual-selection');
+            card.classList.remove('tag-selection');
+        });
+
         // Ensure we're in main library view (not pool view)
         isPoolView = false;
 
@@ -862,22 +890,23 @@
         const showingSelectionPool = isShowingSelectionPool();
 
         if (isPoolView) {
-            // Pool view: Hide library controls, show back button
+            // Pool view: Show all 4 buttons (Select All, Deselect All, Back to Library, Add to Project)
             viewPoolBtn.classList.add('is-hidden');
             viewPoolBtn.disabled = true;
 
             backToLibraryBtn.classList.remove('is-hidden');
             backToLibraryBtn.disabled = false;
 
-            selectAllBtn.classList.add('is-hidden');
-            selectAllBtn.disabled = true;
+            // Keep Select All and Deselect All visible in pool view
+            selectAllBtn.classList.remove('is-hidden');
+            selectAllBtn.disabled = false;
 
-            deselectAllBtn.classList.add('is-hidden');
-            deselectAllBtn.disabled = true;
+            deselectAllBtn.classList.remove('is-hidden');
+            deselectAllBtn.disabled = !hasSelections; // Dimmed when no selections
 
             addToProjectBtn.disabled = !hasSelections; // Dimmed when no selections
 
-            console.log('Set buttons for pool view');
+            console.log('Set buttons for pool view - showing all 4 buttons');
         } else {
             // Library view: Show library controls, hide back button
             viewPoolBtn.classList.remove('is-hidden');
@@ -940,7 +969,10 @@
         selectedImages = [];
 
         cards.forEach(card => {
+            // Remove all selection-related classes to clear red borders
             card.classList.remove('selected');
+            card.classList.remove('manual-selection');
+            card.classList.remove('tag-selection');
         });
 
         updateSelectionState();
@@ -971,6 +1003,9 @@
         console.log('Setting isPoolView to true');
         isPoolView = true;
 
+        // Update header to show Selection Pool
+        updateLibraryTitle(true);
+
         // Use the main display function which now handles pool view
         await displayLibraryImages();
         console.log('=== viewSelectionPool END ===');
@@ -988,6 +1023,9 @@
 
         // Ensure we're in library view
         isPoolView = false;
+
+        // Update header back to normal library view
+        updateLibraryTitle(false);
 
         // Refresh to show full library (all images)
         displayLibraryImages();
@@ -1008,6 +1046,9 @@
 
         // Ensure we're in library view
         isPoolView = false;
+
+        // Update header back to normal library view
+        updateLibraryTitle(false);
 
         // Refresh to show full library (all images)
         displayLibraryImages();
@@ -1043,6 +1084,9 @@
 
             isPoolView = false;
             console.log('Set isPoolView to false');
+
+            // Update header back to normal library view
+            updateLibraryTitle(false);
 
             // Don't clear search tags - preserve them
             // Don't clear tagSelectedImages - preserve tag selection status
