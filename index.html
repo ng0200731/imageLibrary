@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.11.0" />
+  <link rel="stylesheet" href="styles.css?v=2.11.3" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.11.0</span>
+          <span class="version">v2.11.3</span>
       </div>
 
       <div class="sidebar__footer">
@@ -217,6 +217,9 @@
           <img id="preview-overlay-img" src="" alt="Full Size Preview">
           <button id="preview-overlay-close" class="image-preview-close">✕</button>
         </div>
+        <!-- Navigation arrows for Selection Pool -->
+        <button id="preview-nav-left" class="image-preview-nav-arrow nav-left hidden">◀</button>
+        <button id="preview-nav-right" class="image-preview-nav-arrow nav-right hidden">▶</button>
       </div>
 
       <!-- Project Detail Overlay Modal -->
@@ -320,6 +323,8 @@
     const imagePreviewOverlay = document.getElementById('image-preview-overlay');
     const previewOverlayImg = document.getElementById('preview-overlay-img');
     const previewOverlayClose = document.getElementById('preview-overlay-close');
+    const previewNavLeft = document.getElementById('preview-nav-left');
+    const previewNavRight = document.getElementById('preview-nav-right');
 
     let filesToUpload = [];
     let currentImageIndex = 0;
@@ -332,6 +337,11 @@
     let projects = []; // Store created projects
     let isPoolView = false; // Track if we're viewing selection pool
     let lastCreatedProject = null; // Store the last created project for navigation
+
+    // Selection Pool preview navigation
+    let currentPreviewImages = []; // Array of images for navigation
+    let currentPreviewIndex = 0; // Current image index in preview
+    let isSelectionPoolPreview = false; // Track if we're in Selection Pool preview mode
 
     // --- Function Definitions ---
 
@@ -566,21 +576,34 @@
 
                 card.appendChild(img);
 
-                // Add eye icon for image preview (only in library view, not pool view)
-                if (!isPoolView) {
-                    const eyeIcon = document.createElement('div');
-                    eyeIcon.className = 'image-preview-eye';
-                    eyeIcon.textContent = '🔍';
-                    eyeIcon.title = 'Preview full size image';
+                // Add eye icon for image preview (both library view and pool view)
+                const eyeIcon = document.createElement('div');
+                eyeIcon.className = 'image-preview-eye';
+                eyeIcon.textContent = '🔍';
+                eyeIcon.title = 'Preview full size image';
 
-                    eyeIcon.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                eyeIcon.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // Check if we're in Selection Pool view (by title or isPoolView flag)
+                    const libraryTitle = document.querySelector('#page-library .title');
+                    const isSelectionPoolView = isPoolView || (libraryTitle && libraryTitle.textContent.includes('Selection Pool'));
+
+                    console.log('Lens clicked - isPoolView:', isPoolView, 'isSelectionPoolView:', isSelectionPoolView);
+
+                    if (isSelectionPoolView) {
+                        // Selection Pool preview with navigation
+                        console.log('Opening Selection Pool preview for image:', image.id, 'at index:', index);
+                        showSelectionPoolPreview(image, imagesToDisplay, index);
+                    } else {
+                        // Regular library preview
+                        console.log('Opening regular library preview for image:', image.id);
                         showImagePreviewOverlay(imageSrc, image);
-                    });
+                    }
+                });
 
-                    card.appendChild(eyeIcon);
-                }
+                card.appendChild(eyeIcon);
 
                 // Add tag overlay for matching tags OR for tag-selected images
                 const matchingTags = getMatchingTags(image.tags || [], currentSearchTags);
@@ -1480,6 +1503,11 @@
 
     // Image Preview Overlay Functions
     function showImagePreviewOverlay(imageSrc, image) {
+        // Set up regular library preview (no navigation)
+        isSelectionPoolPreview = false;
+        currentPreviewImages = [];
+        currentPreviewIndex = 0;
+
         previewOverlayImg.src = imageSrc;
         previewOverlayImg.alt = `Full size preview of image ${image.id}`;
 
@@ -1489,13 +1517,17 @@
 
         imagePreviewOverlay.classList.add('show');
 
+        // Hide navigation arrows for regular library view
+        previewNavLeft.classList.add('hidden');
+        previewNavRight.classList.add('hidden');
+
         // Prevent body scrolling when overlay is open (but allow overlay scrolling)
         document.body.style.overflow = 'hidden';
 
         // Add pan event listeners
         addPanEventListeners();
 
-        console.log('Image preview overlay opened for image:', image.id);
+        console.log('Regular image preview overlay opened for image:', image.id);
     }
 
     function hideImagePreviewOverlay() {
@@ -1507,6 +1539,15 @@
 
         // Remove pan event listeners
         removePanEventListeners();
+
+        // Reset Selection Pool preview state
+        isSelectionPoolPreview = false;
+        currentPreviewImages = [];
+        currentPreviewIndex = 0;
+
+        // Hide navigation arrows
+        previewNavLeft.classList.add('hidden');
+        previewNavRight.classList.add('hidden');
     }
 
     // Pan functionality variables
@@ -1564,6 +1605,107 @@
     function endPan() {
         isPanning = false;
         imagePreviewOverlay.classList.remove('panning');
+    }
+
+    // Selection Pool Preview Functions
+    function showSelectionPoolPreview(clickedImage, allImages, clickedIndex) {
+        console.log('showSelectionPoolPreview called with:', {
+            clickedImage: clickedImage.id,
+            allImagesCount: allImages.length,
+            clickedIndex: clickedIndex
+        });
+
+        // Set up navigation data
+        currentPreviewImages = allImages;
+        currentPreviewIndex = clickedIndex;
+        isSelectionPoolPreview = true;
+
+        // Show the clicked image
+        const imageSrc = `${API_URL}/${clickedImage.filepath.replace(/\\/g, '/')}`;
+        previewOverlayImg.src = imageSrc;
+        previewOverlayImg.alt = `Full size preview of image ${clickedImage.id}`;
+
+        // Reset scroll position to top-left
+        imagePreviewOverlay.scrollTop = 0;
+        imagePreviewOverlay.scrollLeft = 0;
+
+        // Show overlay first
+        imagePreviewOverlay.classList.add('show');
+
+        // Update navigation arrows visibility (after overlay is shown)
+        updateNavigationArrows();
+
+        // Prevent body scrolling and add pan functionality
+        document.body.style.overflow = 'hidden';
+        addPanEventListeners();
+
+        console.log('Selection Pool preview opened for image:', clickedImage.id, 'at index:', clickedIndex);
+        console.log('Navigation arrows should be visible now');
+    }
+
+    function updateNavigationArrows() {
+        console.log('updateNavigationArrows called:', {
+            currentPreviewIndex: currentPreviewIndex,
+            totalImages: currentPreviewImages.length,
+            isSelectionPoolPreview: isSelectionPoolPreview
+        });
+
+        if (!isSelectionPoolPreview) {
+            // Hide arrows for regular library preview
+            previewNavLeft.classList.add('hidden');
+            previewNavRight.classList.add('hidden');
+            console.log('Hiding arrows - not Selection Pool preview');
+            return;
+        }
+
+        // Show/hide arrows based on current position in Selection Pool
+        if (currentPreviewIndex <= 0) {
+            previewNavLeft.classList.add('hidden');
+            console.log('Hiding left arrow - at first image');
+        } else {
+            previewNavLeft.classList.remove('hidden');
+            console.log('Showing left arrow');
+        }
+
+        if (currentPreviewIndex >= currentPreviewImages.length - 1) {
+            previewNavRight.classList.add('hidden');
+            console.log('Hiding right arrow - at last image');
+        } else {
+            previewNavRight.classList.remove('hidden');
+            console.log('Showing right arrow');
+        }
+
+        console.log('Navigation arrows updated');
+    }
+
+    function navigatePreview(direction) {
+        if (!isSelectionPoolPreview) return;
+
+        let newIndex = currentPreviewIndex;
+
+        if (direction === 'left' && currentPreviewIndex > 0) {
+            newIndex = currentPreviewIndex - 1;
+        } else if (direction === 'right' && currentPreviewIndex < currentPreviewImages.length - 1) {
+            newIndex = currentPreviewIndex + 1;
+        }
+
+        if (newIndex !== currentPreviewIndex) {
+            currentPreviewIndex = newIndex;
+            const newImage = currentPreviewImages[newIndex];
+            const newImageSrc = `${API_URL}/${newImage.filepath.replace(/\\/g, '/')}`;
+
+            previewOverlayImg.src = newImageSrc;
+            previewOverlayImg.alt = `Full size preview of image ${newImage.id}`;
+
+            // Reset scroll position for new image
+            imagePreviewOverlay.scrollTop = 0;
+            imagePreviewOverlay.scrollLeft = 0;
+
+            // Update arrow visibility
+            updateNavigationArrows();
+
+            console.log('Navigated to image:', newImage.id, 'at index:', newIndex);
+        }
     }
 
     async function createProject() {
@@ -2049,21 +2191,36 @@
         }
     });
 
-    // Close overlay with Escape key and add arrow key scrolling
+    // Navigation arrow event listeners
+    previewNavLeft.addEventListener('click', () => {
+        navigatePreview('left');
+    });
+
+    previewNavRight.addEventListener('click', () => {
+        navigatePreview('right');
+    });
+
+    // Close overlay with Escape key and add arrow key scrolling/navigation
     document.addEventListener('keydown', (e) => {
         if (imagePreviewOverlay.classList.contains('show')) {
             if (e.key === 'Escape') {
                 hideImagePreviewOverlay();
-            } else if (e.key === 'ArrowUp') {
+            } else if (isSelectionPoolPreview && e.key === 'ArrowLeft') {
+                e.preventDefault();
+                navigatePreview('left');
+            } else if (isSelectionPoolPreview && e.key === 'ArrowRight') {
+                e.preventDefault();
+                navigatePreview('right');
+            } else if (!isSelectionPoolPreview && e.key === 'ArrowUp') {
                 e.preventDefault();
                 imagePreviewOverlay.scrollTop -= 50;
-            } else if (e.key === 'ArrowDown') {
+            } else if (!isSelectionPoolPreview && e.key === 'ArrowDown') {
                 e.preventDefault();
                 imagePreviewOverlay.scrollTop += 50;
-            } else if (e.key === 'ArrowLeft') {
+            } else if (!isSelectionPoolPreview && e.key === 'ArrowLeft') {
                 e.preventDefault();
                 imagePreviewOverlay.scrollLeft -= 50;
-            } else if (e.key === 'ArrowRight') {
+            } else if (!isSelectionPoolPreview && e.key === 'ArrowRight') {
                 e.preventDefault();
                 imagePreviewOverlay.scrollLeft += 50;
             }
