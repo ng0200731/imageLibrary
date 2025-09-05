@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.9.10" />
+  <link rel="stylesheet" href="styles.css?v=2.9.12" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.9.10</span>
+          <span class="version">v2.9.12</span>
       </div>
 
       <div class="sidebar__footer">
@@ -195,6 +195,17 @@
         </div>
       </div>
 
+      <!-- Project Created Confirmation Modal -->
+      <div id="project-created-modal" class="modal is-hidden">
+        <div class="modal-content-text">
+          <p id="project-success-message">Project created successfully! What would you like to do next?</p>
+          <div class="modal-buttons">
+            <button id="add-more-projects-btn" class="button">Add More Projects</button>
+            <button id="go-to-project-btn" class="button is-primary">Go to Project</button>
+          </div>
+        </div>
+      </div>
+
   <script>
     // --- Constants & State ---
     const API_URL = 'http://localhost:3000';
@@ -244,6 +255,12 @@
     const createProjectBtn = document.getElementById('create-project-btn');
     const projectList = document.getElementById('project-list');
 
+    // Project created confirmation modal elements
+    const projectCreatedModal = document.getElementById('project-created-modal');
+    const projectSuccessMessage = document.getElementById('project-success-message');
+    const addMoreProjectsBtn = document.getElementById('add-more-projects-btn');
+    const goToProjectBtn = document.getElementById('go-to-project-btn');
+
     let filesToUpload = [];
     let currentImageIndex = 0;
     let imageSources = [];
@@ -254,6 +271,7 @@
     let imageSelectionOrder = {}; // Track selection timestamps for ordering
     let projects = []; // Store created projects
     let isPoolView = false; // Track if we're viewing selection pool
+    let lastCreatedProject = null; // Store the last created project for navigation
 
     // --- Function Definitions ---
 
@@ -1241,6 +1259,16 @@
         projectNameInput.value = '';
     }
 
+    function showProjectCreatedModal(projectName, imageCount) {
+        projectSuccessMessage.textContent = `Project "${projectName}" created with ${imageCount} images! What would you like to do next?`;
+        projectCreatedModal.classList.remove('is-hidden');
+    }
+
+    function hideProjectCreatedModal() {
+        projectCreatedModal.classList.add('is-hidden');
+        lastCreatedProject = null;
+    }
+
     async function createProject() {
         const projectName = projectNameInput.value.trim();
         console.log('Creating project with selected images:', selectedImages);
@@ -1269,11 +1297,15 @@
             const newProject = await saveProjectToAPI(projectName, [...selectedImages]);
             displayProjects();
 
-            // Hide modal first, then clear selection
+            // Store the created project for navigation
+            lastCreatedProject = newProject;
+
+            // Hide project name modal first, then clear selection
             hideProjectNameModal();
             deselectAllImages();
 
-            alert(`Project "${projectName}" created with ${imageCount} images.`);
+            // Show success confirmation modal
+            showProjectCreatedModal(projectName, imageCount);
         } catch (error) {
             alert('Failed to create project. Please try again.');
         }
@@ -1670,6 +1702,20 @@
     addToProjectBtn.addEventListener('click', showProjectNameModal);
     cancelProjectBtn.addEventListener('click', hideProjectNameModal);
     createProjectBtn.addEventListener('click', createProject);
+
+    // Project created confirmation modal event listeners
+    addMoreProjectsBtn.addEventListener('click', () => {
+        hideProjectCreatedModal();
+        // Stay in current view to allow selecting more images for another project
+        console.log('User chose to add more projects');
+    });
+
+    goToProjectBtn.addEventListener('click', () => {
+        hideProjectCreatedModal();
+        // Navigate to the project page
+        navigateTo('project');
+        console.log('User chose to go to project page');
+    });
 
     // Project name input enter key
     projectNameInput.addEventListener('keydown', (e) => {
