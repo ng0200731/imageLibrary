@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.10.3" />
+  <link rel="stylesheet" href="styles.css?v=2.10.4" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.10.3</span>
+          <span class="version">v2.10.4</span>
       </div>
 
       <div class="sidebar__footer">
@@ -228,9 +228,6 @@
               <div class="project-tags-row">
                 <span id="project-detail-tags">🏷️ Tags: beach, sunset, family</span>
               </div>
-              <div class="project-selected-row">
-                <span id="project-detail-selected">✅ Selected: 0 images</span>
-              </div>
             </div>
           </div>
 
@@ -309,7 +306,6 @@
     const projectDetailDate = document.getElementById('project-detail-date');
     const projectDetailCount = document.getElementById('project-detail-count');
     const projectDetailTags = document.getElementById('project-detail-tags');
-    const projectDetailSelected = document.getElementById('project-detail-selected');
     const projectDetailGrid = document.getElementById('project-detail-grid');
 
     let filesToUpload = [];
@@ -1331,9 +1327,6 @@
         // Get unique tags from project images
         const projectTags = getProjectTags(project.image_ids);
         projectDetailTags.textContent = `🏷️ Tags: ${projectTags.join(', ') || 'No tags'}`;
-
-        // Reset selected count
-        projectDetailSelected.textContent = '✅ Selected: 0 images';
 
         // Load project images
         loadProjectImages(project.image_ids);

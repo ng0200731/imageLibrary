@@ -1239,8 +1239,7 @@ body {
 }
 
 .project-stats-row,
-.project-tags-row,
-.project-selected-row {
+.project-tags-row {
   margin-bottom: 8px;
   font-size: 16px;
 }
