@@ -289,15 +289,21 @@ app.post('/projects/:id/share', async (req, res) => {
             return res.status(404).send('Project not found');
         }
 
-        // Get project images with tags
-        const projectImages = db.prepare(`
+        // Get project images with tags - clean the image_ids string first
+        const cleanImageIds = project.image_ids.replace(/[\[\]]/g, ''); // Remove square brackets
+        const imageIds = cleanImageIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+
+        const placeholders = imageIds.map(() => '?').join(',');
+        const query = `
             SELECT i.*, GROUP_CONCAT(t.name) as tags
             FROM images i
             LEFT JOIN image_tags it ON i.id = it.image_id
             LEFT JOIN tags t ON it.tag_id = t.id
-            WHERE i.id IN (${project.image_ids.split(',').map(() => '?').join(',')})
+            WHERE i.id IN (${placeholders})
             GROUP BY i.id
-        `).all(...project.image_ids.split(',').map(id => parseInt(id)));
+        `;
+
+        const projectImages = db.prepare(query).all(...imageIds);
 
         // Format images data for email
         const imagesWithTags = projectImages.map(img => ({

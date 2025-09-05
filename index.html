@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.15.0" />
+  <link rel="stylesheet" href="styles.css?v=2.15.2" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.15.0</span>
+          <span class="version">v2.15.2</span>
       </div>
 
       <div class="sidebar__footer">
@@ -327,6 +327,18 @@
         </div>
       </div>
 
+      <!-- Email Sending Overlay -->
+      <div id="email-sending-overlay" class="email-overlay is-hidden">
+        <div class="email-overlay-content">
+          <div class="email-spinner"></div>
+          <h3>Sending Email...</h3>
+          <p>Please wait while we prepare and send your project email.</p>
+          <div class="email-progress">
+            <div class="email-progress-bar"></div>
+          </div>
+        </div>
+      </div>
+
   <script>
     // --- Constants & State ---
     const API_URL = 'http://localhost:3000';
@@ -417,6 +429,7 @@
     const shareMessageInput = document.getElementById('share-message-input');
     const cancelShareBtn = document.getElementById('cancel-share-btn');
     const sendShareBtn = document.getElementById('send-share-btn');
+    const emailSendingOverlay = document.getElementById('email-sending-overlay');
 
     // Image preview overlay elements
     const imagePreviewOverlay = document.getElementById('image-preview-overlay');
@@ -2150,9 +2163,11 @@
             return;
         }
 
-        // Show loading state
+        // Show loading state and overlay
         sendShareBtn.disabled = true;
         sendShareBtn.textContent = 'Sending...';
+        hideShareProjectModal();
+        emailSendingOverlay.classList.remove('is-hidden');
 
         try {
             const response = await fetch(`${API_URL}/projects/${projectId}/share`, {
@@ -2167,19 +2182,21 @@
             });
 
             if (response.ok) {
+                emailSendingOverlay.classList.add('is-hidden');
                 alert(`Project "${projectName}" has been shared successfully with ${email}!`);
-                hideShareProjectModal();
             } else {
                 const error = await response.text();
                 throw new Error(error || 'Failed to share project');
             }
         } catch (error) {
             console.error('Error sharing project:', error);
+            emailSendingOverlay.classList.add('is-hidden');
             alert('Failed to share project. Please try again.');
         } finally {
             // Reset button state
             sendShareBtn.disabled = false;
             sendShareBtn.textContent = 'Send Email';
+            emailSendingOverlay.classList.add('is-hidden');
         }
     }
 

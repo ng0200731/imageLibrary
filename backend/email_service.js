@@ -119,7 +119,7 @@ async function createEmailOptions(projectData, recipientEmail, senderMessage, fr
     const mailOptions = {
         from: fromEmail,
         to: recipientEmail,
-        subject: projectData.name,
+        subject: `Image Library [${projectData.name}] / record`,
         html: htmlContent,
         attachments: []
     };
