@@ -484,7 +484,7 @@ body {
 /* Lightbox Modal */
 .modal {
   position: fixed;
-  z-index: 1000;
+  z-index: 3000; /* Higher than project detail overlay (2000) */
   left: 0;
   top: 0;
   width: 100%;
@@ -1149,4 +1149,153 @@ body {
 .modal-buttons .button.is-primary:focus {
   background: #fff;
   color: #000;
+}
+
+/* Project Search Bar */
+.project-search-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid #ddd;
+  background: #f9f9f9;
+}
+
+.project-search-bar input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+.project-search-bar button {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+/* Project Detail Overlay */
+.project-detail-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.project-detail-overlay.is-hidden {
+  display: none;
+}
+
+.project-detail-content {
+  background: #fff;
+  width: 90%;
+  max-width: 1200px;
+  height: 85%;
+  border: 2px solid #000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Project Detail Header (20%) */
+.project-detail-header {
+  background: #f5f5f5;
+  border-bottom: 2px solid #000;
+  padding: 20px;
+  height: 20%;
+  min-height: 140px;
+}
+
+.project-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.project-title-row h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.modal-close-btn {
+  background: #fff;
+  border: 2px solid #000;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.modal-close-btn:hover {
+  background: #000;
+  color: #fff;
+}
+
+.project-stats-row,
+.project-tags-row,
+.project-selected-row {
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+
+.project-stats-row span {
+  margin-right: 24px;
+}
+
+/* Project Detail Grid (80%) */
+.project-detail-grid-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.project-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.project-image-card {
+  position: relative;
+  border: 2px solid #ddd;
+  overflow: hidden;
+  aspect-ratio: 1;
+  cursor: pointer;
+}
+
+.project-image-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.project-image-card:hover {
+  border-color: #000;
+}
+
+.project-image-icons {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+}
+
+.project-image-icon {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #000;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
 }

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.9.12" />
+  <link rel="stylesheet" href="styles.css?v=2.10.3" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.9.12</span>
+          <span class="version">v2.10.3</span>
       </div>
 
       <div class="sidebar__footer">
@@ -139,6 +139,11 @@
           <h1 class="title">Projects</h1>
         </header>
         <section class="panel">
+          <!-- Project Search Bar -->
+          <div class="project-search-bar">
+            <input type="text" id="project-search-input" placeholder="Search project name..." autocomplete="off">
+            <button id="project-filter-btn" class="button" type="button">Filter</button>
+          </div>
           <div id="project-list" class="project-list">
             <p class="text">No projects created yet. Select images in the Image Library and click "Add to Project" to create your first project.</p>
           </div>
@@ -206,6 +211,38 @@
         </div>
       </div>
 
+      <!-- Project Detail Overlay Modal -->
+      <div id="project-detail-modal" class="project-detail-overlay is-hidden">
+        <div class="project-detail-content">
+          <!-- Project Header (20%) -->
+          <div class="project-detail-header">
+            <div class="project-info-section">
+              <div class="project-title-row">
+                <h2 id="project-detail-name">📁 Project Name</h2>
+                <button id="close-project-detail" class="modal-close-btn">✕ Close</button>
+              </div>
+              <div class="project-stats-row">
+                <span id="project-detail-date">📅 Created: 2024-01-15</span>
+                <span id="project-detail-count">📊 Total Images: 12</span>
+              </div>
+              <div class="project-tags-row">
+                <span id="project-detail-tags">🏷️ Tags: beach, sunset, family</span>
+              </div>
+              <div class="project-selected-row">
+                <span id="project-detail-selected">✅ Selected: 0 images</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Project Image Grid (80%) -->
+          <div class="project-detail-grid-container">
+            <div id="project-detail-grid" class="project-detail-grid">
+              <!-- Project images will be loaded here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
   <script>
     // --- Constants & State ---
     const API_URL = 'http://localhost:3000';
@@ -260,6 +297,20 @@
     const projectSuccessMessage = document.getElementById('project-success-message');
     const addMoreProjectsBtn = document.getElementById('add-more-projects-btn');
     const goToProjectBtn = document.getElementById('go-to-project-btn');
+
+    // Project search elements
+    const projectSearchInput = document.getElementById('project-search-input');
+    const projectFilterBtn = document.getElementById('project-filter-btn');
+
+    // Project detail overlay elements
+    const projectDetailModal = document.getElementById('project-detail-modal');
+    const closeProjectDetailBtn = document.getElementById('close-project-detail');
+    const projectDetailName = document.getElementById('project-detail-name');
+    const projectDetailDate = document.getElementById('project-detail-date');
+    const projectDetailCount = document.getElementById('project-detail-count');
+    const projectDetailTags = document.getElementById('project-detail-tags');
+    const projectDetailSelected = document.getElementById('project-detail-selected');
+    const projectDetailGrid = document.getElementById('project-detail-grid');
 
     let filesToUpload = [];
     let currentImageIndex = 0;
@@ -1269,6 +1320,135 @@
         lastCreatedProject = null;
     }
 
+    function showProjectDetailModal(project) {
+        console.log('Opening project detail modal for:', project);
+
+        // Update header information
+        projectDetailName.textContent = `📁 ${project.name}`;
+        projectDetailDate.textContent = `📅 Created: ${new Date(project.created_at).toLocaleDateString()}`;
+        projectDetailCount.textContent = `📊 Total Images: ${project.image_ids.length}`;
+
+        // Get unique tags from project images
+        const projectTags = getProjectTags(project.image_ids);
+        projectDetailTags.textContent = `🏷️ Tags: ${projectTags.join(', ') || 'No tags'}`;
+
+        // Reset selected count
+        projectDetailSelected.textContent = '✅ Selected: 0 images';
+
+        // Load project images
+        loadProjectImages(project.image_ids);
+
+        // Show modal
+        projectDetailModal.classList.remove('is-hidden');
+    }
+
+    function hideProjectDetailModal() {
+        projectDetailModal.classList.add('is-hidden');
+        projectDetailGrid.innerHTML = '';
+    }
+
+    function getProjectTags(imageIds) {
+        const allTags = new Set();
+        imageIds.forEach(imageId => {
+            const image = libraryImages.find(img => img.id === imageId);
+            if (image && image.tags) {
+                image.tags.forEach(tag => allTags.add(tag));
+            }
+        });
+        return Array.from(allTags);
+    }
+
+    async function loadProjectImages(imageIds) {
+        projectDetailGrid.innerHTML = '';
+
+        try {
+            // Get all images from API
+            const response = await fetch(`${API_URL}/images`);
+            if (!response.ok) throw new Error('Failed to fetch images');
+            const allImages = await response.json();
+
+            // Filter to only project images
+            const projectImages = allImages.filter(img => imageIds.includes(img.id));
+
+            projectImages.forEach(image => {
+                const card = document.createElement('div');
+                card.className = 'project-image-card';
+
+                const img = document.createElement('img');
+                img.src = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
+                img.alt = `Image ${image.id}`;
+
+                // Add click handler for lightbox
+                img.addEventListener('click', () => {
+                    // Open lightbox for this image
+                    openProjectImageLightbox(image, projectImages);
+                });
+
+                // Create icons container
+                const iconsContainer = document.createElement('div');
+                iconsContainer.className = 'project-image-icons';
+
+                // Determine selection type and add appropriate icons
+                const isTagSelected = tagSelectedImages.includes(image.id);
+                const isManualSelected = selectedImages.includes(image.id) && !isTagSelected;
+
+                if (isTagSelected) {
+                    const tagIcon = document.createElement('div');
+                    tagIcon.className = 'project-image-icon';
+                    tagIcon.textContent = '🏷️';
+                    tagIcon.title = 'Selected by tags';
+                    iconsContainer.appendChild(tagIcon);
+                }
+
+                if (isManualSelected) {
+                    const handIcon = document.createElement('div');
+                    handIcon.className = 'project-image-icon';
+                    handIcon.textContent = '👆';
+                    handIcon.title = 'Manually selected';
+                    iconsContainer.appendChild(handIcon);
+                }
+
+                card.appendChild(img);
+                if (iconsContainer.children.length > 0) {
+                    card.appendChild(iconsContainer);
+                }
+
+                projectDetailGrid.appendChild(card);
+            });
+
+        } catch (error) {
+            console.error('Error loading project images:', error);
+            projectDetailGrid.innerHTML = '<p>Error loading project images.</p>';
+        }
+    }
+
+    function openProjectImageLightbox(image, projectImages) {
+        // Set up lightbox for project images with proper src format
+        const imageIndex = projectImages.findIndex(img => img.id === image.id);
+
+        // Format project images for lightbox (add src property)
+        const formattedImages = projectImages.map(img => ({
+            ...img,
+            src: `${API_URL}/${img.filepath.replace(/\\/g, '/')}`
+        }));
+
+        // Temporarily set for lightbox navigation
+        libraryImages = formattedImages;
+        openLibraryLightbox(imageIndex);
+    }
+
+    function filterProjects(searchTerm) {
+        const projectCards = document.querySelectorAll('.project-card');
+        projectCards.forEach(card => {
+            const projectTitle = card.querySelector('.project-title').textContent.toLowerCase();
+            if (projectTitle.includes(searchTerm)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
     async function createProject() {
         const projectName = projectNameInput.value.trim();
         console.log('Creating project with selected images:', selectedImages);
@@ -1421,7 +1601,10 @@
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'button delete-project-btn';
             deleteBtn.textContent = 'Delete';
-            deleteBtn.addEventListener('click', () => deleteProject(project.id));
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent triggering project detail modal
+                deleteProject(project.id);
+            });
 
             actionSection.appendChild(deleteBtn);
             cardHeader.appendChild(titleSection);
@@ -1456,6 +1639,14 @@
             } catch (error) {
                 console.error('Error loading project images:', error);
             }
+
+            // Add click handler to open project detail modal
+            projectCard.addEventListener('click', () => {
+                showProjectDetailModal(project);
+            });
+
+            // Make project card look clickable
+            projectCard.style.cursor = 'pointer';
 
             projectCard.appendChild(cardHeader);
             projectCard.appendChild(projectPreview);
@@ -1715,6 +1906,20 @@
         // Navigate to the project page
         navigateTo('project');
         console.log('User chose to go to project page');
+    });
+
+    // Project detail modal event listeners
+    closeProjectDetailBtn.addEventListener('click', hideProjectDetailModal);
+
+    // Project search functionality
+    projectSearchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        filterProjects(searchTerm);
+    });
+
+    projectFilterBtn.addEventListener('click', () => {
+        // Future: Add advanced filtering options
+        console.log('Filter button clicked - future feature');
     });
 
     // Project name input enter key
