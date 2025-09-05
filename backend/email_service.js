@@ -145,21 +145,11 @@ async function createEmailOptions(projectData, recipientEmail, senderMessage, fr
 }
 
 /**
- * Generate HTML email content
+ * Generate HTML email content with new layout
  */
 function generateHtmlContent(projectData, senderMessage) {
     const currentTime = new Date().toLocaleString();
-    
-    // Get all unique tags
-    const allTags = new Set();
-    projectData.images.forEach(image => {
-        if (image.tags) {
-            image.tags.forEach(tag => allTags.add(tag));
-        }
-    });
-    
-    const tagsStr = allTags.size > 0 ? Array.from(allTags).sort().join(', ') : 'No tags';
-    
+
     let html = `
     <!DOCTYPE html>
     <html>
@@ -171,13 +161,36 @@ function generateHtmlContent(projectData, senderMessage) {
             .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border: 2px solid #000; }
             .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
             .project-info { background: #f9f9f9; padding: 20px; margin-bottom: 30px; border: 1px solid #ddd; }
-            .images-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-            .image-item { text-align: center; border: 1px solid #ddd; padding: 10px; background: white; }
-            .image-item img { max-width: 100%; height: 200px; object-fit: cover; border: 1px solid #ccc; }
-            .image-tags { font-size: 12px; color: #666; margin-top: 8px; }
+
+            /* New Layout Styles */
+            .image-section { margin-bottom: 40px; border: 2px solid #ddd; }
+            .image-header { background: #333; color: white; padding: 10px; text-align: center; font-weight: bold; }
+            .image-content { display: flex; min-height: 400px; }
+            .image-left { flex: 1; padding: 20px; display: flex; align-items: center; justify-content: center; background: #f9f9f9; }
+            .image-left img { max-width: 100%; max-height: 350px; object-fit: contain; border: 1px solid #ccc; }
+            .image-right { flex: 1; display: flex; flex-direction: column; }
+            .metadata-section { flex: 1; padding: 20px; border-bottom: 1px solid #ddd; }
+            .metadata-section:last-child { border-bottom: none; }
+            .metadata-title { font-weight: bold; color: #333; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+            .metadata-row { display: flex; flex-wrap: wrap; gap: 15px; }
+            .metadata-item { flex: 1; min-width: 120px; }
+            .metadata-label { font-weight: bold; color: #666; font-size: 12px; }
+            .metadata-value { color: #333; font-size: 14px; }
+            .subjective-tags { background: #f0f8ff; padding: 15px; }
+            .tag-list { display: flex; flex-wrap: wrap; gap: 8px; }
+            .tag { background: #e1f5fe; padding: 4px 8px; border-radius: 4px; font-size: 12px; border: 1px solid #b3e5fc; }
+
             .footer { text-align: center; border-top: 2px solid #000; padding-top: 20px; margin-top: 30px; color: #666; }
             h1 { color: #000; margin: 0; }
             h2 { color: #333; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+
+            /* Mobile Responsive */
+            @media (max-width: 768px) {
+                .image-content { flex-direction: column; }
+                .image-left, .image-right { flex: none; }
+                .metadata-row { flex-direction: column; }
+                .metadata-item { min-width: auto; }
+            }
         </style>
     </head>
     <body>
@@ -196,34 +209,78 @@ function generateHtmlContent(projectData, senderMessage) {
             </div>
         `;
     }
-    
+
     html += `
             <div class="project-info">
                 <h2>📊 Project Details</h2>
                 <p><strong>Project Name:</strong> ${projectData.name}</p>
                 <p><strong>Total Images:</strong> ${projectData.images.length} images</p>
                 <p><strong>Created:</strong> ${projectData.created_at || 'Unknown'}</p>
-                <p><strong>Tags:</strong> ${tagsStr}</p>
             </div>
-            
-            <h2>🖼️ Project Images</h2>
-            <div class="images-grid">
     `;
-    
-    // Add images to grid
+
+    // Add each image with new layout
     projectData.images.forEach((image, i) => {
-        const imageTags = image.tags && image.tags.length > 0 ? image.tags.join(', ') : 'No tags';
+        // Extract metadata from image object or tags
+        const metadata = extractImageMetadata(image);
+        const subjectiveTags = getSubjectiveTags(image);
+
         html += `
-                <div class="image-item">
-                    <img src="cid:image${i}" alt="Project Image ${i+1}">
-                    <div class="image-tags">Tags: ${imageTags}</div>
+            <div class="image-section">
+                <div class="image-header">IMAGE ${i + 1} OF ${projectData.images.length}</div>
+                <div class="image-content">
+                    <div class="image-left">
+                        <img src="cid:image${i}" alt="Project Image ${i+1}">
+                    </div>
+                    <div class="image-right">
+                        <div class="metadata-section">
+                            <div class="metadata-title">OBJECTIVE (FACTS)</div>
+                            <div class="metadata-row">
+                                <div class="metadata-item">
+                                    <div class="metadata-label">Location:</div>
+                                    <div class="metadata-value">
+                                        book: ${metadata.book || 'N/A'}<br>
+                                        page: ${metadata.page || 'N/A'}<br>
+                                        row: ${metadata.row || 'N/A'}<br>
+                                        column: ${metadata.column || 'N/A'}
+                                    </div>
+                                </div>
+                                <div class="metadata-item">
+                                    <div class="metadata-label">Item Details:</div>
+                                    <div class="metadata-value">
+                                        type: ${metadata.type || 'N/A'}<br>
+                                        material: ${metadata.material || 'N/A'}<br>
+                                        dimension: ${metadata.dimension || 'N/A'}
+                                    </div>
+                                </div>
+                                <div class="metadata-item">
+                                    <div class="metadata-label">Remark:</div>
+                                    <div class="metadata-value">
+                                        remark: ${metadata.remark || 'N/A'}
+                                    </div>
+                                </div>
+                                <div class="metadata-item">
+                                    <div class="metadata-label">Additional Tags:</div>
+                                    <div class="metadata-value">
+                                        brand: ${metadata.brand || 'N/A'}<br>
+                                        color: ${metadata.color || 'N/A'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="metadata-section subjective-tags">
+                            <div class="metadata-title">SUBJECTIVE (FEELINGS)</div>
+                            <div class="tag-list">
+                                ${subjectiveTags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
                 </div>
+            </div>
         `;
     });
-    
+
     html += `
-            </div>
-            
             <div class="footer">
                 <p>This email was sent from the Image Library application.</p>
                 <p>Project shared on: ${currentTime}</p>
@@ -232,8 +289,82 @@ function generateHtmlContent(projectData, senderMessage) {
     </body>
     </html>
     `;
-    
+
     return html;
+}
+
+/**
+ * Extract metadata from image object or tags
+ */
+function extractImageMetadata(image) {
+    const metadata = {
+        book: null,
+        page: null,
+        row: null,
+        column: null,
+        type: null,
+        material: null,
+        dimension: null,
+        remark: null,
+        brand: null,
+        color: null
+    };
+
+    // First try to get from image object properties (if stored in database)
+    if (image.book) metadata.book = image.book;
+    if (image.page) metadata.page = image.page;
+    if (image.row) metadata.row = image.row;
+    if (image.column) metadata.column = image.column;
+    if (image.type) metadata.type = image.type;
+    if (image.material) metadata.material = image.material;
+    if (image.dimension) metadata.dimension = image.dimension;
+    if (image.remark) metadata.remark = image.remark;
+    if (image.brand) metadata.brand = image.brand;
+    if (image.color) metadata.color = image.color;
+
+    // If not found in object, try to extract from tags
+    if (image.tags && image.tags.length > 0) {
+        image.tags.forEach(tag => {
+            const colonIndex = tag.indexOf(':');
+            if (colonIndex > 0) {
+                const key = tag.substring(0, colonIndex).toLowerCase();
+                const value = tag.substring(colonIndex + 1);
+
+                if (metadata.hasOwnProperty(key) && !metadata[key]) {
+                    metadata[key] = value;
+                }
+            }
+        });
+    }
+
+    return metadata;
+}
+
+/**
+ * Get subjective tags (non-metadata tags)
+ */
+function getSubjectiveTags(image) {
+    if (!image.tags || image.tags.length === 0) {
+        return ['No subjective tags'];
+    }
+
+    const subjectiveTags = [];
+    const metadataKeys = ['book', 'page', 'row', 'column', 'type', 'material', 'dimension', 'remark', 'brand', 'color'];
+
+    image.tags.forEach(tag => {
+        const colonIndex = tag.indexOf(':');
+        if (colonIndex > 0) {
+            const key = tag.substring(0, colonIndex).toLowerCase();
+            if (!metadataKeys.includes(key)) {
+                subjectiveTags.push(tag);
+            }
+        } else {
+            // Tags without colons are considered subjective
+            subjectiveTags.push(tag);
+        }
+    });
+
+    return subjectiveTags.length > 0 ? subjectiveTags : ['No subjective tags'];
 }
 
 module.exports = {
