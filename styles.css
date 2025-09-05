@@ -1486,15 +1486,60 @@ body {
 
 /* Share Project Button */
 .share-project-btn {
-  background: #4caf50;
-  color: white;
-  border: 2px solid #4caf50;
+  background: transparent;
+  color: #666;
+  border: none;
   margin-right: 8px;
+  font-size: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  position: relative;
 }
 
 .share-project-btn:hover {
-  background: #45a049;
-  border-color: #45a049;
+  background: rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px) scale(1.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Custom share icon with CSS */
+.share-project-btn::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* Delete Project Button */
+.delete-project-btn {
+  background: transparent;
+  color: #666;
+  border: none;
+  font-size: 18px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.delete-project-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px) scale(1.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* Share Project Modal */

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.12.1" />
+  <link rel="stylesheet" href="styles.css?v=2.12.5" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.12.1</span>
+          <span class="version">v2.12.5</span>
       </div>
 
       <div class="sidebar__footer">
@@ -1899,7 +1899,8 @@
 
             const shareBtn = document.createElement('button');
             shareBtn.className = 'button share-project-btn';
-            shareBtn.textContent = 'Share';
+            shareBtn.innerHTML = '';
+            shareBtn.title = 'Share project via email';
             shareBtn.addEventListener('click', (e) => {
                 e.stopPropagation(); // Prevent triggering project detail modal
                 showShareProjectModal(project);
@@ -1907,7 +1908,8 @@
 
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'button delete-project-btn';
-            deleteBtn.textContent = 'Delete';
+            deleteBtn.innerHTML = '🗑️';
+            deleteBtn.title = 'Delete project';
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation(); // Prevent triggering project detail modal
                 deleteProject(project.id);
