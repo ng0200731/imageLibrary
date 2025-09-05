@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.10.4" />
+  <link rel="stylesheet" href="styles.css?v=2.10.5" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.10.4</span>
+          <span class="version">v2.10.5</span>
       </div>
 
       <div class="sidebar__footer">
@@ -399,10 +399,14 @@
 
                 console.log('Pool view - sorted by selection order, latest first');
             } else if (currentSearchTags.length === 0) {
-                // Library view with no search tags - show all images
+                // Library view with no search tags - show all images, latest first
                 // DON'T clear tagSelectedImages here - preserve historical tag selections
                 imagesToDisplay = allImages;
-                console.log('Library view with no active tags, preserving tagSelectedImages:', tagSelectedImages);
+
+                // Sort by image ID in descending order (latest uploads first)
+                imagesToDisplay.sort((a, b) => b.id - a.id);
+
+                console.log('Library view with no active tags, sorted latest first, preserving tagSelectedImages:', tagSelectedImages);
             } else {
                 // Library view with search tags - show tag-matching + manually selected images
                 console.log('Fetching tag-matching images for tags:', currentSearchTags);
@@ -453,7 +457,10 @@
                     }
                 });
 
-                console.log('Combined images to display:', imagesToDisplay.length);
+                // Sort combined results by image ID in descending order (latest first)
+                imagesToDisplay.sort((a, b) => b.id - a.id);
+
+                console.log('Combined images to display:', imagesToDisplay.length, '(sorted latest first)');
                 console.log('Tag-selected images:', tagSelectedImages);
             }
 
