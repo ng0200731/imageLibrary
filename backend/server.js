@@ -4,6 +4,7 @@ const multer = require('multer');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const { sendProjectEmail } = require('./email_service');
 
 const app = express();
 const port = 3000;
@@ -196,6 +197,67 @@ app.delete('/projects/:id', (req, res) => {
     } catch (err) {
         console.error('Error deleting project:', err.message);
         res.status(500).send('Error deleting project');
+    }
+});
+
+// 7. Share Project via Email
+app.post('/projects/:id/share', async (req, res) => {
+    const projectId = req.params.id;
+    const { recipient_email, message } = req.body;
+
+    if (!recipient_email) {
+        return res.status(400).send('Recipient email is required');
+    }
+
+    try {
+        // Get project details
+        const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+        if (!project) {
+            return res.status(404).send('Project not found');
+        }
+
+        // Get project images with tags
+        const projectImages = db.prepare(`
+            SELECT i.*, GROUP_CONCAT(t.name) as tags
+            FROM images i
+            LEFT JOIN image_tags it ON i.id = it.image_id
+            LEFT JOIN tags t ON it.tag_id = t.id
+            WHERE i.id IN (${project.image_ids.split(',').map(() => '?').join(',')})
+            GROUP BY i.id
+        `).all(...project.image_ids.split(',').map(id => parseInt(id)));
+
+        // Format images data for email
+        const imagesWithTags = projectImages.map(img => ({
+            ...img,
+            tags: img.tags ? img.tags.split(',') : []
+        }));
+
+        const projectData = {
+            name: project.name,
+            created_at: project.created_at,
+            images: imagesWithTags
+        };
+
+        // Send email
+        const emailSent = await sendProjectEmail(projectData, recipient_email, message);
+
+        if (emailSent) {
+            res.status(200).json({
+                success: true,
+                message: `Project "${project.name}" shared successfully with ${recipient_email}`
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Failed to send email. Please try again.'
+            });
+        }
+    } catch (err) {
+        console.error('Error sharing project:', err.message);
+        res.status(500).json({
+            success: false,
+            message: 'Error sharing project: ' + err.message
+        });
     }
 });
 

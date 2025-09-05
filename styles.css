@@ -1483,3 +1483,126 @@ body {
 .image-preview-nav-arrow.hidden {
   display: none;
 }
+
+/* Share Project Button */
+.share-project-btn {
+  background: #4caf50;
+  color: white;
+  border: 2px solid #4caf50;
+  margin-right: 8px;
+}
+
+.share-project-btn:hover {
+  background: #45a049;
+  border-color: #45a049;
+}
+
+/* Share Project Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4000;
+}
+
+.modal-overlay.is-hidden {
+  display: none;
+}
+
+.modal-content {
+  background: white;
+  border: 2px solid #000;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  background: #f5f5f5;
+  border-bottom: 2px solid #000;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-body p {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #4caf50;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.modal-footer {
+  background: #f5f5f5;
+  border-top: 2px solid #000;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.button-primary {
+  background: #4caf50;
+  color: white;
+  border: 2px solid #4caf50;
+}
+
+.button-primary:hover {
+  background: #45a049;
+  border-color: #45a049;
+}
+
+.button-primary:disabled {
+  background: #ccc;
+  border-color: #ccc;
+  cursor: not-allowed;
+}

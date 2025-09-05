@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.11.8" />
+  <link rel="stylesheet" href="styles.css?v=2.12.1" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.11.8</span>
+          <span class="version">v2.12.1</span>
       </div>
 
       <div class="sidebar__footer">
@@ -251,6 +251,31 @@
         </div>
       </div>
 
+      <!-- Share Project Modal -->
+      <div id="share-project-modal" class="modal-overlay is-hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Share Project</h2>
+            <button id="share-project-close" class="modal-close-btn">✕</button>
+          </div>
+          <div class="modal-body">
+            <p>Share "<span id="share-project-name"></span>" via email</p>
+            <div class="form-group">
+              <label for="share-email-input">Recipient Email Address:</label>
+              <input type="email" id="share-email-input" placeholder="Enter email address..." required>
+            </div>
+            <div class="form-group">
+              <label for="share-message-input">Optional Message:</label>
+              <textarea id="share-message-input" placeholder="Add a personal message (optional)..." rows="3"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button id="cancel-share-btn" class="button">Cancel</button>
+            <button id="send-share-btn" class="button button-primary">Send Email</button>
+          </div>
+        </div>
+      </div>
+
   <script>
     // --- Constants & State ---
     const API_URL = 'http://localhost:3000';
@@ -318,6 +343,15 @@
     const projectDetailCount = document.getElementById('project-detail-count');
     const projectDetailTags = document.getElementById('project-detail-tags');
     const projectDetailGrid = document.getElementById('project-detail-grid');
+
+    // Share project modal elements
+    const shareProjectModal = document.getElementById('share-project-modal');
+    const shareProjectClose = document.getElementById('share-project-close');
+    const shareProjectName = document.getElementById('share-project-name');
+    const shareEmailInput = document.getElementById('share-email-input');
+    const shareMessageInput = document.getElementById('share-message-input');
+    const cancelShareBtn = document.getElementById('cancel-share-btn');
+    const sendShareBtn = document.getElementById('send-share-btn');
 
     // Image preview overlay elements
     const imagePreviewOverlay = document.getElementById('image-preview-overlay');
@@ -1822,7 +1856,13 @@
 
         projectList.innerHTML = '';
 
-        for (const project of projects) {
+        // Sort projects by creation date - latest first (top-left corner)
+        const sortedProjects = [...projects].sort((a, b) => {
+            // Sort by ID in descending order (assuming higher ID = more recent)
+            return b.id - a.id;
+        });
+
+        for (const project of sortedProjects) {
             const projectCard = document.createElement('div');
             projectCard.className = 'project-card';
 
@@ -1857,6 +1897,14 @@
             const actionSection = document.createElement('div');
             actionSection.className = 'project-actions';
 
+            const shareBtn = document.createElement('button');
+            shareBtn.className = 'button share-project-btn';
+            shareBtn.textContent = 'Share';
+            shareBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent triggering project detail modal
+                showShareProjectModal(project);
+            });
+
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'button delete-project-btn';
             deleteBtn.textContent = 'Delete';
@@ -1865,6 +1913,7 @@
                 deleteProject(project.id);
             });
 
+            actionSection.appendChild(shareBtn);
             actionSection.appendChild(deleteBtn);
             cardHeader.appendChild(titleSection);
             cardHeader.appendChild(actionSection);
@@ -1922,6 +1971,78 @@
             } catch (error) {
                 alert('Failed to delete project. Please try again.');
             }
+        }
+    }
+
+    // Share Project Functions
+    function showShareProjectModal(project) {
+        shareProjectName.textContent = project.name;
+        shareEmailInput.value = '';
+        shareMessageInput.value = '';
+        shareProjectModal.classList.remove('is-hidden');
+        shareEmailInput.focus();
+
+        // Store project data for sharing
+        shareProjectModal.dataset.projectId = project.id;
+        shareProjectModal.dataset.projectName = project.name;
+    }
+
+    function hideShareProjectModal() {
+        shareProjectModal.classList.add('is-hidden');
+        shareEmailInput.value = '';
+        shareMessageInput.value = '';
+        delete shareProjectModal.dataset.projectId;
+        delete shareProjectModal.dataset.projectName;
+    }
+
+    async function shareProject() {
+        const email = shareEmailInput.value.trim();
+        const message = shareMessageInput.value.trim();
+        const projectId = shareProjectModal.dataset.projectId;
+        const projectName = shareProjectModal.dataset.projectName;
+
+        if (!email) {
+            alert('Please enter a recipient email address.');
+            shareEmailInput.focus();
+            return;
+        }
+
+        if (!email.includes('@') || !email.includes('.')) {
+            alert('Please enter a valid email address.');
+            shareEmailInput.focus();
+            return;
+        }
+
+        // Show loading state
+        sendShareBtn.disabled = true;
+        sendShareBtn.textContent = 'Sending...';
+
+        try {
+            const response = await fetch(`${API_URL}/projects/${projectId}/share`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    recipient_email: email,
+                    message: message
+                })
+            });
+
+            if (response.ok) {
+                alert(`Project "${projectName}" has been shared successfully with ${email}!`);
+                hideShareProjectModal();
+            } else {
+                const error = await response.text();
+                throw new Error(error || 'Failed to share project');
+            }
+        } catch (error) {
+            console.error('Error sharing project:', error);
+            alert('Failed to share project. Please try again.');
+        } finally {
+            // Reset button state
+            sendShareBtn.disabled = false;
+            sendShareBtn.textContent = 'Send Email';
         }
     }
 
@@ -2233,6 +2354,27 @@
             createProject();
         } else if (e.key === 'Escape') {
             hideProjectNameModal();
+        }
+    });
+
+    // Share project modal event listeners
+    shareProjectClose.addEventListener('click', hideShareProjectModal);
+    cancelShareBtn.addEventListener('click', hideShareProjectModal);
+    sendShareBtn.addEventListener('click', shareProject);
+
+    // Share email input enter key
+    shareEmailInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            shareProject();
+        } else if (e.key === 'Escape') {
+            hideShareProjectModal();
+        }
+    });
+
+    // Close share modal when clicking outside
+    shareProjectModal.addEventListener('click', (e) => {
+        if (e.target === shareProjectModal) {
+            hideShareProjectModal();
         }
     });
 
