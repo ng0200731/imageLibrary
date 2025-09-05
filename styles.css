@@ -1340,12 +1340,12 @@ body {
   height: 100%;
   background: rgba(0, 0, 0, 0.9);
   z-index: 3500; /* Higher than lightbox */
-  display: flex;
-  align-items: center;
-  justify-content: center;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;
+  overflow: auto; /* Enable scrolling */
+  padding: 20px; /* Padding around the image */
+  box-sizing: border-box;
 }
 
 .image-preview-overlay.show {
@@ -1354,40 +1354,90 @@ body {
 }
 
 .image-preview-content {
-  max-width: 90%;
-  max-height: 90%;
   position: relative;
+  display: inline-block;
+  margin: auto;
+  min-width: min-content;
+  min-height: min-content;
 }
 
 .image-preview-content img {
-  max-width: 100%;
-  max-height: 100%;
+  width: auto;
+  height: auto;
+  max-width: none; /* Allow image to be larger than viewport */
+  max-height: none; /* Allow image to be larger than viewport */
+  min-width: 300px; /* Minimum size for very small images */
+  min-height: 200px; /* Minimum size for very small images */
   object-fit: contain;
   border: 3px solid #fff;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  display: block;
+  cursor: grab; /* Indicate draggable/scrollable */
+}
+
+.image-preview-content img:active {
+  cursor: grabbing; /* Show grabbing cursor when dragging */
+}
+
+/* Pan functionality styles */
+.image-preview-overlay.panning {
+  cursor: grabbing;
+}
+
+.image-preview-overlay.panning * {
+  cursor: grabbing !important;
+  user-select: none;
 }
 
 .image-preview-close {
-  position: absolute;
-  top: -15px;
-  right: -15px;
-  background: #fff;
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: rgba(255, 255, 255, 0.9);
   color: #000;
   border: 2px solid #000;
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
+  width: 50px;
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 24px;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.2s ease;
+  z-index: 3600; /* Above the overlay */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .image-preview-close:hover {
   background: #000;
   color: #fff;
   transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Custom scrollbar for image preview overlay */
+.image-preview-overlay::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.image-preview-overlay::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+.image-preview-overlay::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 6px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.image-preview-overlay::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.image-preview-overlay::-webkit-scrollbar-corner {
+  background: rgba(255, 255, 255, 0.1);
 }

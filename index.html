@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.10.7" />
+  <link rel="stylesheet" href="styles.css?v=2.11.0" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.10.7</span>
+          <span class="version">v2.11.0</span>
       </div>
 
       <div class="sidebar__footer">
@@ -1482,10 +1482,20 @@
     function showImagePreviewOverlay(imageSrc, image) {
         previewOverlayImg.src = imageSrc;
         previewOverlayImg.alt = `Full size preview of image ${image.id}`;
+
+        // Reset scroll position to top-left
+        imagePreviewOverlay.scrollTop = 0;
+        imagePreviewOverlay.scrollLeft = 0;
+
         imagePreviewOverlay.classList.add('show');
 
-        // Prevent body scrolling when overlay is open
+        // Prevent body scrolling when overlay is open (but allow overlay scrolling)
         document.body.style.overflow = 'hidden';
+
+        // Add pan event listeners
+        addPanEventListeners();
+
+        console.log('Image preview overlay opened for image:', image.id);
     }
 
     function hideImagePreviewOverlay() {
@@ -1494,6 +1504,66 @@
 
         // Restore body scrolling
         document.body.style.overflow = '';
+
+        // Remove pan event listeners
+        removePanEventListeners();
+    }
+
+    // Pan functionality variables
+    let isPanning = false;
+    let startX = 0;
+    let startY = 0;
+    let scrollLeft = 0;
+    let scrollTop = 0;
+
+    // Pan functionality functions
+    function addPanEventListeners() {
+        imagePreviewOverlay.addEventListener('mousedown', startPan);
+        imagePreviewOverlay.addEventListener('mousemove', doPan);
+        imagePreviewOverlay.addEventListener('mouseup', endPan);
+        imagePreviewOverlay.addEventListener('mouseleave', endPan);
+
+        // Prevent default drag behavior on images
+        previewOverlayImg.addEventListener('dragstart', (e) => e.preventDefault());
+    }
+
+    function removePanEventListeners() {
+        imagePreviewOverlay.removeEventListener('mousedown', startPan);
+        imagePreviewOverlay.removeEventListener('mousemove', doPan);
+        imagePreviewOverlay.removeEventListener('mouseup', endPan);
+        imagePreviewOverlay.removeEventListener('mouseleave', endPan);
+    }
+
+    function startPan(e) {
+        // Don't start panning if clicking on the close button
+        if (e.target.id === 'preview-overlay-close') return;
+
+        isPanning = true;
+        imagePreviewOverlay.classList.add('panning');
+
+        startX = e.clientX;
+        startY = e.clientY;
+        scrollLeft = imagePreviewOverlay.scrollLeft;
+        scrollTop = imagePreviewOverlay.scrollTop;
+
+        e.preventDefault();
+    }
+
+    function doPan(e) {
+        if (!isPanning) return;
+
+        e.preventDefault();
+
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+
+        imagePreviewOverlay.scrollLeft = scrollLeft - deltaX;
+        imagePreviewOverlay.scrollTop = scrollTop - deltaY;
+    }
+
+    function endPan() {
+        isPanning = false;
+        imagePreviewOverlay.classList.remove('panning');
     }
 
     async function createProject() {
@@ -1979,10 +2049,24 @@
         }
     });
 
-    // Close overlay with Escape key
+    // Close overlay with Escape key and add arrow key scrolling
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && imagePreviewOverlay.classList.contains('show')) {
-            hideImagePreviewOverlay();
+        if (imagePreviewOverlay.classList.contains('show')) {
+            if (e.key === 'Escape') {
+                hideImagePreviewOverlay();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                imagePreviewOverlay.scrollTop -= 50;
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                imagePreviewOverlay.scrollTop += 50;
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                imagePreviewOverlay.scrollLeft -= 50;
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                imagePreviewOverlay.scrollLeft += 50;
+            }
         }
     });
 
