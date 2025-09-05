@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.10.5" />
+  <link rel="stylesheet" href="styles.css?v=2.10.7" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.10.5</span>
+          <span class="version">v2.10.7</span>
       </div>
 
       <div class="sidebar__footer">
@@ -211,6 +211,14 @@
         </div>
       </div>
 
+      <!-- Image Preview Overlay -->
+      <div id="image-preview-overlay" class="image-preview-overlay">
+        <div class="image-preview-content">
+          <img id="preview-overlay-img" src="" alt="Full Size Preview">
+          <button id="preview-overlay-close" class="image-preview-close">✕</button>
+        </div>
+      </div>
+
       <!-- Project Detail Overlay Modal -->
       <div id="project-detail-modal" class="project-detail-overlay is-hidden">
         <div class="project-detail-content">
@@ -307,6 +315,11 @@
     const projectDetailCount = document.getElementById('project-detail-count');
     const projectDetailTags = document.getElementById('project-detail-tags');
     const projectDetailGrid = document.getElementById('project-detail-grid');
+
+    // Image preview overlay elements
+    const imagePreviewOverlay = document.getElementById('image-preview-overlay');
+    const previewOverlayImg = document.getElementById('preview-overlay-img');
+    const previewOverlayClose = document.getElementById('preview-overlay-close');
 
     let filesToUpload = [];
     let currentImageIndex = 0;
@@ -552,6 +565,22 @@
                 }
 
                 card.appendChild(img);
+
+                // Add eye icon for image preview (only in library view, not pool view)
+                if (!isPoolView) {
+                    const eyeIcon = document.createElement('div');
+                    eyeIcon.className = 'image-preview-eye';
+                    eyeIcon.textContent = '🔍';
+                    eyeIcon.title = 'Preview full size image';
+
+                    eyeIcon.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showImagePreviewOverlay(imageSrc, image);
+                    });
+
+                    card.appendChild(eyeIcon);
+                }
 
                 // Add tag overlay for matching tags OR for tag-selected images
                 const matchingTags = getMatchingTags(image.tags || [], currentSearchTags);
@@ -1449,6 +1478,24 @@
         });
     }
 
+    // Image Preview Overlay Functions
+    function showImagePreviewOverlay(imageSrc, image) {
+        previewOverlayImg.src = imageSrc;
+        previewOverlayImg.alt = `Full size preview of image ${image.id}`;
+        imagePreviewOverlay.classList.add('show');
+
+        // Prevent body scrolling when overlay is open
+        document.body.style.overflow = 'hidden';
+    }
+
+    function hideImagePreviewOverlay() {
+        imagePreviewOverlay.classList.remove('show');
+        previewOverlayImg.src = '';
+
+        // Restore body scrolling
+        document.body.style.overflow = '';
+    }
+
     async function createProject() {
         const projectName = projectNameInput.value.trim();
         console.log('Creating project with selected images:', selectedImages);
@@ -1920,6 +1967,23 @@
     projectFilterBtn.addEventListener('click', () => {
         // Future: Add advanced filtering options
         console.log('Filter button clicked - future feature');
+    });
+
+    // Image preview overlay event listeners
+    previewOverlayClose.addEventListener('click', hideImagePreviewOverlay);
+
+    // Close overlay when clicking outside the image
+    imagePreviewOverlay.addEventListener('click', (e) => {
+        if (e.target === imagePreviewOverlay) {
+            hideImagePreviewOverlay();
+        }
+    });
+
+    // Close overlay with Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && imagePreviewOverlay.classList.contains('show')) {
+            hideImagePreviewOverlay();
+        }
     });
 
     // Project name input enter key
