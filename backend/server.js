@@ -38,18 +38,72 @@ app.post('/upload', upload.array('images'), (req, res) => {
         return res.status(400).send('No files uploaded.');
     }
 
-    // Prepare all statements once, outside the transaction. This is more efficient.
-    const insertImage = db.prepare('INSERT INTO images (filepath) VALUES (?)');
+    // Extract objective metadata from tags
+    function extractMetadata(tags) {
+        const metadata = {
+            book: null,
+            page: null,
+            row: null,
+            column: null,
+            type: null,
+            material: null,
+            dimension: null,
+            remark: null,
+            brand: null,
+            color: null
+        };
+
+        const regularTags = [];
+
+        tags.forEach(tag => {
+            const colonIndex = tag.indexOf(':');
+            if (colonIndex > 0) {
+                const key = tag.substring(0, colonIndex).toLowerCase();
+                const value = tag.substring(colonIndex + 1);
+
+                if (metadata.hasOwnProperty(key)) {
+                    metadata[key] = value;
+                } else {
+                    regularTags.push(tag);
+                }
+            } else {
+                regularTags.push(tag);
+            }
+        });
+
+        return { metadata, regularTags };
+    }
+
+    const { metadata, regularTags } = extractMetadata(tags);
+
+    // Prepare all statements once, outside the transaction
+    const insertImage = db.prepare(`
+        INSERT INTO images (filepath, book, page, row, column, type, material, dimension, remark, brand, color, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    `);
     const insertTag = db.prepare('INSERT OR IGNORE INTO tags (name) VALUES (?)');
     const getTagId = db.prepare('SELECT id FROM tags WHERE name = ?');
     const linkImageToTag = db.prepare('INSERT INTO image_tags (image_id, tag_id) VALUES (?, ?)');
 
-    // Create a single, reusable transaction function.
-    const uploadTransaction = db.transaction((files, tags) => {
+    // Create a single, reusable transaction function
+    const uploadTransaction = db.transaction((files, metadata, regularTags) => {
         for (const file of files) {
-            const imageResult = insertImage.run(file.path);
+            const imageResult = insertImage.run(
+                file.path,
+                metadata.book,
+                metadata.page,
+                metadata.row,
+                metadata.column,
+                metadata.type,
+                metadata.material,
+                metadata.dimension,
+                metadata.remark,
+                metadata.brand,
+                metadata.color
+            );
             const imageId = imageResult.lastInsertRowid;
 
+            // Link all original tags (includes both metadata and regular tags)
             if (tags && tags.length > 0) {
                 for (const tag of tags) {
                     insertTag.run(tag);
@@ -63,12 +117,31 @@ app.post('/upload', upload.array('images'), (req, res) => {
     });
 
     try {
-        // Execute the transaction with the data.
-        uploadTransaction(files, tags);
-        res.status(200).send({ message: 'Files uploaded successfully', count: files.length });
+        console.log('=== Upload Debug Info ===');
+        console.log('Files:', files.length);
+        console.log('Metadata:', metadata);
+        console.log('Regular tags:', regularTags);
+
+        // Execute the transaction with the data
+        uploadTransaction(files, metadata, regularTags);
+
+        console.log('Upload successful:', {
+            files: files.length,
+            metadata: metadata,
+            regularTags: regularTags.length
+        });
+
+        res.status(200).send({
+            message: 'Files uploaded successfully',
+            count: files.length,
+            metadata: metadata,
+            tags: regularTags.length
+        });
     } catch (err) {
-        console.error('Transaction failed:', err);
-        res.status(500).send('An error occurred during upload.');
+        console.error('=== Upload Error ===');
+        console.error('Error details:', err);
+        console.error('Stack trace:', err.stack);
+        res.status(500).send(`An error occurred during upload: ${err.message}`);
     }
 });
 

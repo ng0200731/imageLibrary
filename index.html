@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.12.5" />
+  <link rel="stylesheet" href="styles.css?v=2.14.1" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.12.5</span>
+          <span class="version">v2.14.1</span>
       </div>
 
       <div class="sidebar__footer">
@@ -103,14 +103,65 @@
 
             <div class="tag-panels">
               <div class="tag-panel tag-panel--objective">
-                <div class="tag-panel__header is-objective">OBJECTIVE (FACTS)</div>
+                <div class="tag-panel__header is-objective">
+                  OBJECTIVE (FACTS)
+                  <button id="auto-fill-btn" class="button auto-fill-btn" type="button">Auto Fill</button>
+                </div>
                 <div class="tag-panel__body">
-                  <label class="tag-input">
-                    brand: <input id="obj-brand" type="text" placeholder="brand:nike" />
-                  </label>
-                  <label class="tag-input">
-                    color: <input id="obj-color" type="text" placeholder="color:red" />
-                  </label>
+                  <!-- Location Fields -->
+                  <div class="metadata-section">
+                    <h4>Location</h4>
+                    <div class="metadata-row">
+                      <label class="tag-input">
+                        book: <input id="obj-book" type="text" placeholder="book:Album-01" />
+                      </label>
+                      <label class="tag-input">
+                        page: <input id="obj-page" type="text" placeholder="page:15" />
+                      </label>
+                      <label class="tag-input">
+                        row: <input id="obj-row" type="text" placeholder="row:3" />
+                      </label>
+                      <label class="tag-input">
+                        column: <input id="obj-column" type="text" placeholder="column:2" />
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Item Details -->
+                  <div class="metadata-section">
+                    <h4>Item Details</h4>
+                    <div class="metadata-row">
+                      <label class="tag-input">
+                        type: <input id="obj-type" type="text" placeholder="type:stamp" />
+                      </label>
+                      <label class="tag-input">
+                        material: <input id="obj-material" type="text" placeholder="material:paper" />
+                      </label>
+                      <label class="tag-input">
+                        dimension: <input id="obj-dimension" type="text" placeholder="dimension:25x30mm" />
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Remark -->
+                  <div class="metadata-section">
+                    <h4>Remark</h4>
+                    <label class="tag-input">
+                      remark: <input id="obj-remark" type="text" placeholder="remark:excellent condition, rare find" />
+                    </label>
+                  </div>
+
+                  <!-- Original Fields -->
+                  <div class="metadata-section">
+                    <h4>Additional Tags</h4>
+                    <label class="tag-input">
+                      brand: <input id="obj-brand" type="text" placeholder="brand:nike" />
+                    </label>
+                    <label class="tag-input">
+                      color: <input id="obj-color" type="text" placeholder="color:red" />
+                    </label>
+                  </div>
+
                   <div id="obj-chips" class="chips"></div>
                 </div>
               </div>
@@ -295,6 +346,20 @@
     const dropzone = document.getElementById('dropzone');
     const subjInput = document.getElementById('subj-input');
     const subjChips = document.getElementById('subj-chips');
+
+    // Objective metadata inputs
+    const objBookInput = document.getElementById('obj-book');
+    const objPageInput = document.getElementById('obj-page');
+    const objRowInput = document.getElementById('obj-row');
+    const objColumnInput = document.getElementById('obj-column');
+    const objTypeInput = document.getElementById('obj-type');
+    const objMaterialInput = document.getElementById('obj-material');
+    const objDimensionInput = document.getElementById('obj-dimension');
+    const objRemarkInput = document.getElementById('obj-remark');
+    const objBrandInput = document.getElementById('obj-brand');
+    const objColorInput = document.getElementById('obj-color');
+    const objChips = document.getElementById('obj-chips');
+    const autoFillBtn = document.getElementById('auto-fill-btn');
     const modal = document.getElementById('lightbox-modal');
     const modalImg = document.getElementById('lightbox-image');
     const lightboxTags = document.getElementById('lightbox-tags');
@@ -852,6 +917,76 @@
         const parts = subjInput.value.split(',');
         parts.forEach(p => addSubjChip(p));
         subjInput.value = '';
+    }
+
+    function handleObjCommit(input) {
+        const value = input.value.trim();
+        if (value) {
+            // Create tag from input value (already includes prefix like "book:", "type:", etc.)
+            addObjChip(value);
+            input.value = '';
+        }
+    }
+
+    function addObjChip(text) {
+        if (!text.trim()) return;
+
+        const chip = document.createElement('div');
+        chip.className = 'chip chip--objective';
+        chip.textContent = text.trim();
+
+        const x = document.createElement('span');
+        x.className = 'chip-remove';
+        x.textContent = '×';
+        x.addEventListener('click', (ev) => { ev.stopPropagation(); chip.remove(); });
+        chip.appendChild(x);
+        objChips.appendChild(chip);
+    }
+
+    function autoFillMetadata() {
+        // Sample data arrays for random selection
+        const sampleData = {
+            books: ['Album-01', 'Collection-A', 'Stamps-2024', 'Vintage-Set', 'Modern-Series'],
+            pages: ['12', '25', '8', '33', '15', '7', '41'],
+            rows: ['1', '2', '3', '4', '5'],
+            columns: ['1', '2', '3', '4'],
+            types: ['stamp', 'coin', 'banknote', 'postcard', 'photo', 'document'],
+            materials: ['paper', 'metal', 'plastic', 'fabric', 'wood', 'ceramic'],
+            dimensions: ['25x30mm', '15x20mm', '40x25mm', '30x35mm', '20x25mm', '50x30mm'],
+            remarks: [
+                'excellent condition, rare find',
+                'mint condition, first edition',
+                'good condition, slight wear',
+                'vintage piece, collector item',
+                'pristine condition, never used',
+                'historical significance, well preserved'
+            ],
+            brands: ['royal-mail', 'usps', 'canada-post', 'deutsche-post', 'japan-post'],
+            colors: ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'black', 'white']
+        };
+
+        // Random selection function
+        const random = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+        // Fill all fields with random sample data
+        if (objBookInput) objBookInput.value = `book:${random(sampleData.books)}`;
+        if (objPageInput) objPageInput.value = `page:${random(sampleData.pages)}`;
+        if (objRowInput) objRowInput.value = `row:${random(sampleData.rows)}`;
+        if (objColumnInput) objColumnInput.value = `column:${random(sampleData.columns)}`;
+        if (objTypeInput) objTypeInput.value = `type:${random(sampleData.types)}`;
+        if (objMaterialInput) objMaterialInput.value = `material:${random(sampleData.materials)}`;
+        if (objDimensionInput) objDimensionInput.value = `dimension:${random(sampleData.dimensions)}`;
+        if (objRemarkInput) objRemarkInput.value = `remark:${random(sampleData.remarks)}`;
+        if (objBrandInput) objBrandInput.value = `brand:${random(sampleData.brands)}`;
+        if (objColorInput) objColorInput.value = `color:${random(sampleData.colors)}`;
+
+        // Visual feedback
+        autoFillBtn.textContent = 'Filled!';
+        autoFillBtn.style.background = '#4caf50';
+        setTimeout(() => {
+            autoFillBtn.textContent = 'Auto Fill';
+            autoFillBtn.style.background = '#2196f3';
+        }, 1500);
     }
 
     function updateArrowVisibility() {
@@ -2075,6 +2210,21 @@
         }
     });
 
+    // Add event listeners for all objective metadata inputs
+    [objBookInput, objPageInput, objRowInput, objColumnInput, objTypeInput, objMaterialInput, objDimensionInput, objRemarkInput, objBrandInput, objColorInput].forEach(input => {
+        if (input) {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === 'Tab' || e.key === ',') {
+                    e.preventDefault();
+                    handleObjCommit(input);
+                }
+            });
+        }
+    });
+
+    // Auto-fill button event listener
+    autoFillBtn.addEventListener('click', autoFillMetadata);
+
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropzone.addEventListener(eventName, (e) => {
             e.preventDefault();
@@ -2137,6 +2287,13 @@
     function clearUploadUI() {
         previewGrid.innerHTML = '';
         subjChips.innerHTML = '';
+        objChips.innerHTML = '';
+
+        // Clear all objective metadata inputs
+        [objBookInput, objPageInput, objRowInput, objColumnInput, objTypeInput, objMaterialInput, objDimensionInput, objRemarkInput, objBrandInput, objColorInput].forEach(input => {
+            if (input) input.value = '';
+        });
+
         filesToUpload = [];
         fileInput.value = '';
     }
@@ -2155,7 +2312,9 @@
     });
 
     uploadButton.addEventListener('click', async () => {
-        const tags = Array.from(subjChips.querySelectorAll('.chip')).map(chip => chip.textContent.replace(/x$/, '').trim());
+        const subjTags = Array.from(subjChips.querySelectorAll('.chip')).map(chip => chip.textContent.replace(/×$/, '').trim());
+        const objTags = Array.from(objChips.querySelectorAll('.chip')).map(chip => chip.textContent.replace(/×$/, '').trim());
+        const allTags = [...subjTags, ...objTags];
 
         if (filesToUpload.length === 0) {
             return alert('Please select images to upload.');
@@ -2165,7 +2324,7 @@
         filesToUpload.forEach(file => {
             formData.append('images', file);
         });
-        formData.append('tags', JSON.stringify(tags));
+        formData.append('tags', JSON.stringify(allTags));
 
         uploadButton.disabled = true;
         loadingOverlay.classList.remove('is-hidden');

@@ -5,7 +5,18 @@ function setupDatabase() {
     db.exec(`
         CREATE TABLE IF NOT EXISTS images (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filepath TEXT NOT NULL UNIQUE
+            filepath TEXT NOT NULL UNIQUE,
+            book TEXT,
+            page TEXT,
+            row TEXT,
+            column TEXT,
+            type TEXT,
+            material TEXT,
+            dimension TEXT,
+            remark TEXT,
+            brand TEXT,
+            color TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS tags (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

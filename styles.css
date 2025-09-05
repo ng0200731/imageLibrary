@@ -1542,6 +1542,69 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
+/* Metadata Sections */
+.metadata-section {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.metadata-section:last-of-type {
+  border-bottom: none;
+}
+
+.metadata-section h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metadata-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.metadata-row .tag-input {
+  flex: 1;
+  min-width: 120px;
+  margin-bottom: 0;
+}
+
+.metadata-row .tag-input input {
+  width: 100%;
+  min-width: 80px;
+}
+
+/* Auto Fill Button */
+.tag-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.auto-fill-btn {
+  background: #2196f3;
+  color: white;
+  border: 1px solid #2196f3;
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.auto-fill-btn:hover {
+  background: #1976d2;
+  border-color: #1976d2;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+}
+
 /* Share Project Modal */
 .modal-overlay {
   position: fixed;
