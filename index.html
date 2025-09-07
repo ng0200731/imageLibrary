@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.11</span>
+          <span class="version">v2.17.12</span>
       </div>
 
       <div class="sidebar__footer">
@@ -460,7 +460,7 @@
         console.log('Input images:', images.map(img => `${img.id}: [${img.tags?.join(',') || 'untagged'}] uploaded: ${img.uploadTime}`));
         console.log('Tag creation order:', tagCreationOrder);
 
-        // Create groups by tag in chronological order
+        // Create groups by tag in reverse chronological order (latest tag first)
         const result = [];
         const processedImages = new Set(); // Track processed images to prevent duplicates
 
@@ -477,7 +477,7 @@
 
             // If we have creation timestamps, use them
             if (timestampA !== undefined && timestampB !== undefined) {
-                return timestampA - timestampB; // Earliest tag first
+                return timestampB - timestampA; // Latest tag first (most recently created)
             }
 
             // Fallback: if no creation timestamps, find the earliest image with each tag
@@ -499,12 +499,12 @@
 
             const idA = earliestImageWithA?.id || 0;
             const idB = earliestImageWithB?.id || 0;
-            return idA - idB; // Earliest image ID first
+            return idB - idA; // Latest image ID first (consistent with timestamp sorting)
         });
 
-        console.log('Tags in chronological order:', sortedTags.map(tag => `${tag}: ${tagCreationOrder[tag]}`));
+        console.log('Tags in reverse chronological order (latest first):', sortedTags.map(tag => `${tag}: ${tagCreationOrder[tag]}`));
 
-        // For each tag in chronological order, add images that have this tag (but haven't been processed yet)
+        // For each tag in reverse chronological order (latest first), add images that have this tag (but haven't been processed yet)
         sortedTags.forEach(tag => {
             const imagesWithThisTag = images.filter(image => {
                 const imageTags = image.tags || [];
