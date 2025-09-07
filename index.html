@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.6</span>
+          <span class="version">v2.17.7</span>
       </div>
 
       <div class="sidebar__footer">
@@ -61,10 +61,7 @@
               <button id="clear-all-tags" class="button clear-tags-btn" type="button">Clear All</button>
             </div>
             <div id="library-search-chips" class="chips search-chips"></div>
-            <div class="search-options">
-              <label><input type="radio" name="search-mode" value="AND" checked> AND (all tags must match)</label>
-              <label><input type="radio" name="search-mode" value="OR"> OR (any tag can match)</label>
-            </div>
+
           </div>
           <div id="library-grid" class="preview-grid"></div>
         </section>
@@ -386,7 +383,7 @@
     // Header title element for dynamic updates
     const libraryTitle = document.querySelector('#page-library .title');
     const clearAllTagsBtn = document.getElementById('clear-all-tags');
-    const searchModeRadios = document.querySelectorAll('input[name="search-mode"]');
+    // Removed searchModeRadios - using default OR mode
 
     // Selection and project elements
     const selectionControls = document.getElementById('selection-controls');
@@ -593,7 +590,6 @@
     function updateSearchInputVisibility() {
         const searchInput = document.getElementById('library-search-input');
         const clearAllBtn = document.getElementById('clear-all-tags');
-        const searchModeRadios = document.querySelectorAll('input[name="search-mode"]');
         const libraryTitle = document.querySelector('#page-library .title');
 
         // Check if we're in Selection Pool view by multiple criteria
@@ -604,10 +600,9 @@
         console.log('updateSearchInputVisibility - isPoolView:', isPoolView, 'isSelectionPool:', isSelectionPool, 'hasTagSearch:', hasTagSearch, 'hasSelectedImages:', hasSelectedImages);
 
         if (isPoolView || isSelectionPool || (hasTagSearch && hasSelectedImages)) {
-            // DISABLE search input and clear button in Selection Pool view, but KEEP radio buttons enabled
+            // DISABLE search input and clear button in Selection Pool view
             searchInput.disabled = true;
             clearAllBtn.disabled = true;
-            // Keep radio buttons enabled: searchModeRadios.forEach(radio => radio.disabled = true);
 
             // Add visual styling for disabled state
             searchInput.style.opacity = '0.5';
@@ -615,12 +610,11 @@
             clearAllBtn.style.opacity = '0.5';
             clearAllBtn.style.cursor = 'not-allowed';
 
-            console.log('Search input/clear DISABLED for Selection Pool view, radio buttons remain ENABLED');
+            console.log('Search input/clear DISABLED for Selection Pool view');
         } else {
-            // ENABLE all search controls in regular Library view
+            // ENABLE search controls in regular Library view
             searchInput.disabled = false;
             clearAllBtn.disabled = false;
-            searchModeRadios.forEach(radio => radio.disabled = false);
 
             // Remove visual styling for disabled state
             searchInput.style.opacity = '1';
@@ -636,7 +630,7 @@
         console.log('displayLibraryImages called, selectedImages at start:', selectedImages);
         console.log('isPoolView:', isPoolView);
 
-        const searchMode = document.querySelector('input[name="search-mode"]:checked').value;
+        const searchMode = 'OR'; // Default to OR mode since radio buttons removed
         const currentSearchTags = searchTags.map(tag => tag.text);
 
         try {
@@ -732,17 +726,15 @@
             // Update search input visibility based on view type
             updateSearchInputVisibility();
 
-            // SAFETY CHECK: Always disable search input/clear button if title shows Selection Pool, but keep radio buttons enabled
+            // SAFETY CHECK: Always disable search input/clear button if title shows Selection Pool
             setTimeout(() => {
                 const libraryTitle = document.querySelector('#page-library .title');
                 if (libraryTitle && libraryTitle.textContent.includes('Selection Pool')) {
                     const searchInput = document.getElementById('library-search-input');
                     const clearAllBtn = document.getElementById('clear-all-tags');
-                    // const searchModeRadios = document.querySelectorAll('input[name="search-mode"]');
 
                     searchInput.disabled = true;
                     clearAllBtn.disabled = true;
-                    // Keep radio buttons enabled: searchModeRadios.forEach(radio => radio.disabled = true);
 
                     searchInput.style.opacity = '0.5';
                     searchInput.style.cursor = 'not-allowed';
@@ -2564,7 +2556,7 @@
         displayLibraryImages();
     }
 
-    searchModeRadios.forEach(radio => radio.addEventListener('change', displayLibraryImages));
+    // Removed searchModeRadios event listener - using default OR mode
 
     // Clear all button (clears both tags and selected images)
     clearAllTagsBtn.addEventListener('click', () => {
