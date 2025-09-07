@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Image Library — Minimal Shell</title>
-  <link rel="stylesheet" href="styles.css?v=2.16.2" />
+  <title>Image Library — Minimal Shell v2.16.3</title>
+  <link rel="stylesheet" href="styles.css?v=2.16.3&bust=20250907071300" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.16.2</span>
+          <span class="version">v2.16.3</span>
       </div>
 
       <div class="sidebar__footer">
@@ -827,7 +827,7 @@
 
                 // Update the chip color based on matches
                 const chip = Array.from(librarySearchChips.querySelectorAll('.search-chip')).find(
-                    chip => chip.textContent.replace('x', '').trim() === tagText
+                    chip => chip.textContent.replace(/[×x]$/, '').trim() === tagText
                 );
 
                 if (chip) {
@@ -891,7 +891,7 @@
                 const del = document.createElement('button');
                 del.type = 'button';
                 del.className = 'delete-btn';
-                del.textContent = 'x';
+                del.textContent = '×';
                 del.addEventListener('click', () => {
                     const indexToRemove = filesToUpload.indexOf(file);
                     if (indexToRemove > -1) {
@@ -911,7 +911,7 @@
     function addSubjChip(label) {
         const text = (label || '').toLowerCase().trim();
         if (!text) return;
-        if ([...subjChips.querySelectorAll('.chip')].some(c => c.textContent.replace(/x$/, '').trim() === text)) return;
+        if ([...subjChips.querySelectorAll('.chip')].some(c => c.textContent.replace(/[×x]$/, '').trim() === text)) return;
         const chip = document.createElement('span');
         chip.className = 'chip is-subjective';
         chip.textContent = text;
@@ -920,7 +920,7 @@
         const x = document.createElement('button');
         x.type = 'button';
         x.className = 'x';
-        x.textContent = 'x';
+        x.textContent = '×';
         x.addEventListener('click', (ev) => { ev.stopPropagation(); chip.remove(); });
         chip.appendChild(x);
         subjChips.appendChild(chip);
@@ -1068,7 +1068,7 @@
         const deleteBtn = document.createElement('button');
         deleteBtn.type = 'button';
         deleteBtn.className = 'chip-delete';
-        deleteBtn.textContent = 'x';
+        deleteBtn.textContent = '×';
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             removeSearchTagChip(text);
@@ -1086,7 +1086,7 @@
         // Remove from DOM
         const chips = librarySearchChips.querySelectorAll('.search-chip');
         chips.forEach(chip => {
-            if (chip.textContent.replace('x', '').trim() === tagText) {
+            if (chip.textContent.replace(/[×x]$/, '').trim() === tagText) {
                 chip.remove();
             }
         });
@@ -2329,8 +2329,8 @@
     });
 
     uploadButton.addEventListener('click', async () => {
-        const subjTags = Array.from(subjChips.querySelectorAll('.chip')).map(chip => chip.textContent.replace(/×$/, '').trim());
-        const objTags = Array.from(objChips.querySelectorAll('.chip')).map(chip => chip.textContent.replace(/×$/, '').trim());
+        const subjTags = Array.from(subjChips.querySelectorAll('.chip')).map(chip => chip.textContent.replace(/[×x]$/, '').trim());
+        const objTags = Array.from(objChips.querySelectorAll('.chip')).map(chip => chip.textContent.replace(/[×x]$/, '').trim());
         const allTags = [...subjTags, ...objTags];
 
         if (filesToUpload.length === 0) {
