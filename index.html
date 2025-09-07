@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.12</span>
+          <span class="version">v2.17.15</span>
       </div>
 
       <div class="sidebar__footer">
@@ -462,53 +462,21 @@
 
         // Create groups by tag in reverse chronological order (latest tag first)
         const result = [];
-        const processedImages = new Set(); // Track processed images to prevent duplicates
 
-        // Get all unique tags and sort by creation order
-        const allTags = new Set();
-        images.forEach(image => {
-            const imageTags = image.tags || [];
-            imageTags.forEach(tag => allTags.add(tag));
+        // Get all tags that have been input (from tagCreationOrder) and sort by input timestamp
+        const allInputTags = Object.keys(tagCreationOrder).sort((a, b) => {
+            const timestampA = tagCreationOrder[a] || 0;
+            const timestampB = tagCreationOrder[b] || 0;
+            return timestampB - timestampA; // Latest tag first (most recently input)
         });
 
-        const sortedTags = Array.from(allTags).sort((a, b) => {
-            const timestampA = tagCreationOrder[a];
-            const timestampB = tagCreationOrder[b];
+        console.log('All input tags in reverse chronological order (latest input first):', allInputTags.map(tag => `${tag}: ${tagCreationOrder[tag]}`));
 
-            // If we have creation timestamps, use them
-            if (timestampA !== undefined && timestampB !== undefined) {
-                return timestampB - timestampA; // Latest tag first (most recently created)
-            }
-
-            // Fallback: if no creation timestamps, find the earliest image with each tag
-            const earliestImageWithA = images
-                .filter(img => (img.tags || []).includes(a))
-                .reduce((earliest, img) => {
-                    const imgId = img.id || 0;
-                    const earliestId = earliest?.id || Infinity;
-                    return imgId < earliestId ? img : earliest;
-                }, null);
-
-            const earliestImageWithB = images
-                .filter(img => (img.tags || []).includes(b))
-                .reduce((earliest, img) => {
-                    const imgId = img.id || 0;
-                    const earliestId = earliest?.id || Infinity;
-                    return imgId < earliestId ? img : earliest;
-                }, null);
-
-            const idA = earliestImageWithA?.id || 0;
-            const idB = earliestImageWithB?.id || 0;
-            return idB - idA; // Latest image ID first (consistent with timestamp sorting)
-        });
-
-        console.log('Tags in reverse chronological order (latest first):', sortedTags.map(tag => `${tag}: ${tagCreationOrder[tag]}`));
-
-        // For each tag in reverse chronological order (latest first), add images that have this tag (but haven't been processed yet)
-        sortedTags.forEach(tag => {
+        // For each tag in reverse chronological order (latest first), add ALL images that have this tag
+        allInputTags.forEach(tag => {
             const imagesWithThisTag = images.filter(image => {
                 const imageTags = image.tags || [];
-                return imageTags.includes(tag) && !processedImages.has(image.id);
+                return imageTags.includes(tag);
             });
 
             // Sort images within this tag group by upload time (earliest first)
@@ -522,10 +490,9 @@
                 `${img.id} (uploaded: ${img.uploadTime})`
             ));
 
-            // Add these images to result and mark as processed
+            // Add ALL these images to result (allowing duplicates across tag groups)
             imagesWithThisTag.forEach(image => {
                 result.push(image);
-                processedImages.add(image.id);
             });
         });
 
@@ -1174,6 +1141,14 @@
 
         // Check if tag already exists
         if (searchTags.some(tag => tag.text === text)) return;
+
+        // Track tag input timestamp for ordering (most recent input first)
+        const currentTimestamp = Date.now();
+        tagCreationOrder[text] = currentTimestamp;
+        console.log(`Tag "${text}" input at timestamp:`, currentTimestamp);
+        
+        // Save the updated tag order
+        saveTagCreationOrder();
 
         // Add to searchTags array
         searchTags.push({ text: text, hasMatches: hasMatches });
@@ -2588,18 +2563,6 @@
         }
     }
 
-    function setCorrectTagOrder() {
-        // Set the correct tag order: owl, 1, car (latest at head of grid)
-        const baseTime = Date.now() - 1000000; // Use a base time in the past
-        tagCreationOrder = {
-            'owl': baseTime + 2000,
-            '1': baseTime + 1000,
-            'car': baseTime
-        };
-        saveTagCreationOrder();
-        console.log('Set correct tag order:', tagCreationOrder);
-    }
-
 
 
 
@@ -2609,9 +2572,6 @@
 
     // Load tag creation order from localStorage
     loadTagCreationOrder();
-
-    // Set the correct tag order for the sequence: owl, 1, car (latest at head of grid)
-    setCorrectTagOrder();
 
     // Selection and project event listeners
     selectAllBtn.addEventListener('click', selectAllImages);
