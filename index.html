@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.10</span>
+          <span class="version">v2.17.11</span>
       </div>
 
       <div class="sidebar__footer">
@@ -2592,9 +2592,9 @@
         // Set the correct tag order: owl, 1, car (latest at head of grid)
         const baseTime = Date.now() - 1000000; // Use a base time in the past
         tagCreationOrder = {
-            'owl': baseTime,
+            'owl': baseTime + 2000,
             '1': baseTime + 1000,
-            'car': baseTime + 2000
+            'car': baseTime
         };
         saveTagCreationOrder();
         console.log('Set correct tag order:', tagCreationOrder);
