@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.7</span>
+          <span class="version">v2.17.10</span>
       </div>
 
       <div class="sidebar__footer">
@@ -2588,6 +2588,18 @@
         }
     }
 
+    function setCorrectTagOrder() {
+        // Set the correct tag order: owl, 1, car (latest at head of grid)
+        const baseTime = Date.now() - 1000000; // Use a base time in the past
+        tagCreationOrder = {
+            'owl': baseTime,
+            '1': baseTime + 1000,
+            'car': baseTime + 2000
+        };
+        saveTagCreationOrder();
+        console.log('Set correct tag order:', tagCreationOrder);
+    }
+
 
 
 
@@ -2597,6 +2609,9 @@
 
     // Load tag creation order from localStorage
     loadTagCreationOrder();
+
+    // Set the correct tag order for the sequence: owl, 1, car (latest at head of grid)
+    setCorrectTagOrder();
 
     // Selection and project event listeners
     selectAllBtn.addEventListener('click', selectAllImages);
