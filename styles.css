@@ -387,7 +387,7 @@ body {
     top: 4px;
     left: 4px;
     right: 4px;
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(128, 128, 128, 0.85);
     color: #fff;
     padding: 4px 6px;
     font-size: 11px;
@@ -400,7 +400,7 @@ body {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 /* Highlighted tag overlay for search matches */
@@ -409,6 +409,21 @@ body {
     color: #000;
     border: 1px solid #ffc107;
     font-weight: 700;
+}
+
+/* Tag group headers in Selection Pool */
+.tag-group-header {
+    grid-column: 1 / -1; /* Span full width of grid */
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8px 12px;
+    margin: 8px 0 4px 0;
+    font-weight: 700;
+    font-size: 14px;
+    color: #333;
+    border-radius: 4px;
+    text-align: left;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 /* Preview card delete button */

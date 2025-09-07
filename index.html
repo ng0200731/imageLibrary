@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Image Library — Minimal Shell v2.16.6</title>
-  <link rel="stylesheet" href="styles.css?v=2.16.6&bust=20250907074500" />
+  <title>Image Library — Minimal Shell v2.16.8</title>
+  <link rel="stylesheet" href="styles.css?v=2.16.8&bust=20250907080000" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.16.6</span>
+          <span class="version">v2.17.5</span>
       </div>
 
       <div class="sidebar__footer">
@@ -446,6 +446,7 @@
     let selectedImages = []; // Store selected image IDs for project creation
     let tagSelectedImages = []; // Store images selected by tags (always show tag icon)
     let imageSelectionOrder = {}; // Track selection timestamps for ordering
+    let tagCreationOrder = {}; // Track when each tag was first created/used
     let projects = []; // Store created projects
     let isPoolView = false; // Track if we're viewing selection pool
     let lastCreatedProject = null; // Store the last created project for navigation
@@ -456,6 +457,130 @@
     let isSelectionPoolPreview = false; // Track if we're in Selection Pool preview mode
 
     // --- Function Definitions ---
+
+    function groupImagesByTagsAndSort(images) {
+        console.log('=== groupImagesByTagsAndSort START ===');
+        console.log('Input images:', images.map(img => `${img.id}: [${img.tags?.join(',') || 'untagged'}] uploaded: ${img.uploadTime}`));
+        console.log('Tag creation order:', tagCreationOrder);
+
+        // Create groups by tag in chronological order
+        const result = [];
+        const processedImages = new Set(); // Track processed images to prevent duplicates
+
+        // Get all unique tags and sort by creation order
+        const allTags = new Set();
+        images.forEach(image => {
+            const imageTags = image.tags || [];
+            imageTags.forEach(tag => allTags.add(tag));
+        });
+
+        const sortedTags = Array.from(allTags).sort((a, b) => {
+            const timestampA = tagCreationOrder[a];
+            const timestampB = tagCreationOrder[b];
+
+            // If we have creation timestamps, use them
+            if (timestampA !== undefined && timestampB !== undefined) {
+                return timestampA - timestampB; // Earliest tag first
+            }
+
+            // Fallback: if no creation timestamps, find the earliest image with each tag
+            const earliestImageWithA = images
+                .filter(img => (img.tags || []).includes(a))
+                .reduce((earliest, img) => {
+                    const imgId = img.id || 0;
+                    const earliestId = earliest?.id || Infinity;
+                    return imgId < earliestId ? img : earliest;
+                }, null);
+
+            const earliestImageWithB = images
+                .filter(img => (img.tags || []).includes(b))
+                .reduce((earliest, img) => {
+                    const imgId = img.id || 0;
+                    const earliestId = earliest?.id || Infinity;
+                    return imgId < earliestId ? img : earliest;
+                }, null);
+
+            const idA = earliestImageWithA?.id || 0;
+            const idB = earliestImageWithB?.id || 0;
+            return idA - idB; // Earliest image ID first
+        });
+
+        console.log('Tags in chronological order:', sortedTags.map(tag => `${tag}: ${tagCreationOrder[tag]}`));
+
+        // For each tag in chronological order, add images that have this tag (but haven't been processed yet)
+        sortedTags.forEach(tag => {
+            const imagesWithThisTag = images.filter(image => {
+                const imageTags = image.tags || [];
+                return imageTags.includes(tag) && !processedImages.has(image.id);
+            });
+
+            // Sort images within this tag group by upload time (earliest first)
+            imagesWithThisTag.sort((a, b) => {
+                const uploadTimeA = a.uploadTime || 0;
+                const uploadTimeB = b.uploadTime || 0;
+                return uploadTimeA - uploadTimeB; // Earliest upload first
+            });
+
+            console.log(`Tag "${tag}" images:`, imagesWithThisTag.map(img =>
+                `${img.id} (uploaded: ${img.uploadTime})`
+            ));
+
+            // Add these images to result and mark as processed
+            imagesWithThisTag.forEach(image => {
+                result.push(image);
+                processedImages.add(image.id);
+            });
+        });
+
+        console.log('Final sequence:', result.map(img =>
+            `${img.id}: [${img.tags?.join(',') || 'untagged'}] uploaded: ${img.uploadTime}`
+        ));
+        console.log('=== groupImagesByTagsAndSort END ===');
+
+        return result;
+    }
+
+    function addTagGroupHeaders(images) {
+        // Track which tags we've already added headers for
+        const addedTagHeaders = new Set();
+        const tagGroups = new Map();
+
+        // Group images by their first/primary tag
+        images.forEach(image => {
+            const imageTags = image.tags || [];
+            if (imageTags.length > 0) {
+                const primaryTag = imageTags[0]; // Use first tag as primary
+                if (!tagGroups.has(primaryTag)) {
+                    tagGroups.set(primaryTag, []);
+                }
+                tagGroups.get(primaryTag).push(image);
+            }
+        });
+
+        // Add headers for each tag group
+        let currentTagGroup = null;
+        images.forEach((image, index) => {
+            const imageTags = image.tags || [];
+            const primaryTag = imageTags.length > 0 ? imageTags[0] : 'Untagged';
+
+            // Add header if this is a new tag group
+            if (currentTagGroup !== primaryTag && !addedTagHeaders.has(primaryTag)) {
+                const tagHeader = document.createElement('div');
+                tagHeader.className = 'tag-group-header';
+
+                if (primaryTag === 'Untagged') {
+                    tagHeader.textContent = 'Untagged Images';
+                } else {
+                    const groupCount = tagGroups.get(primaryTag)?.length || 0;
+                    tagHeader.textContent = `${primaryTag} (${groupCount} images)`;
+                }
+
+                libraryGrid.appendChild(tagHeader);
+                addedTagHeaders.add(primaryTag);
+                currentTagGroup = primaryTag;
+            }
+        });
+    }
 
     function updateLibraryTitle(isPoolView = false) {
         if (isPoolView) {
@@ -522,17 +647,13 @@
             let imagesToDisplay = [];
 
             if (isPoolView) {
-                // Pool view - show only selected images, sorted by selection order (latest first)
+                // Pool view - show only selected images, grouped by tags and sorted by latest tagged images first
                 imagesToDisplay = allImages.filter(img => selectedImages.includes(img.id));
 
-                // Sort by selection timestamp - latest selections first
-                imagesToDisplay.sort((a, b) => {
-                    const timestampA = imageSelectionOrder[a.id] || 0;
-                    const timestampB = imageSelectionOrder[b.id] || 0;
-                    return timestampB - timestampA; // Descending order (latest first)
-                });
+                // Group images by tags and sort by latest tagged images first
+                imagesToDisplay = groupImagesByTagsAndSort(imagesToDisplay);
 
-                console.log('Pool view - sorted by selection order, latest first');
+                console.log('Pool view - grouped by tags and sorted by latest tagged images first');
             } else if (currentSearchTags.length === 0) {
                 // Library view with no search tags - show all images, latest first
                 // DON'T clear tagSelectedImages here - preserve historical tag selections
@@ -592,10 +713,10 @@
                     }
                 });
 
-                // Sort combined results by image ID in descending order (latest first)
-                imagesToDisplay.sort((a, b) => b.id - a.id);
+                // Group images by tags and sort by tag creation order
+                imagesToDisplay = groupImagesByTagsAndSort(imagesToDisplay);
 
-                console.log('Combined images to display:', imagesToDisplay.length, '(sorted latest first)');
+                console.log('Combined images to display:', imagesToDisplay.length, '(grouped by tags and sorted)');
                 console.log('Tag-selected images:', tagSelectedImages);
             }
 
@@ -640,6 +761,11 @@
 
             // Check which tags have matches and update chip colors
             await updateTagChipColors(currentSearchTags, searchMode);
+
+            // Add tag group headers in Selection Pool view
+            if (isPoolView) {
+                addTagGroupHeaders(images);
+            }
 
             images.forEach((image, index) => {
                 const card = document.createElement('div');
@@ -2361,6 +2487,16 @@
                 throw new Error(`Upload failed: ${errorText}`);
             }
 
+            // Track tag creation timestamps for uploaded images
+            const currentTimestamp = Date.now();
+            allTags.forEach(tag => {
+                if (!tagCreationOrder[tag]) {
+                    tagCreationOrder[tag] = currentTimestamp;
+                    console.log(`Tag "${tag}" first created during upload at:`, tagCreationOrder[tag]);
+                }
+            });
+            saveTagCreationOrder();
+
             // On success, show the custom confirmation dialog
             confirmModal.classList.remove('is-hidden');
 
@@ -2438,12 +2574,37 @@
     // Initialize button state
     updateClearButtonState();
 
+    // Tag creation order persistence functions
+    function saveTagCreationOrder() {
+        try {
+            localStorage.setItem('tagCreationOrder', JSON.stringify(tagCreationOrder));
+        } catch (error) {
+            console.error('Error saving tag creation order:', error);
+        }
+    }
+
+    function loadTagCreationOrder() {
+        try {
+            const saved = localStorage.getItem('tagCreationOrder');
+            if (saved) {
+                tagCreationOrder = JSON.parse(saved);
+                console.log('Loaded tag creation order:', tagCreationOrder);
+            }
+        } catch (error) {
+            console.error('Error loading tag creation order:', error);
+            tagCreationOrder = {};
+        }
+    }
+
 
 
 
 
     // Initialize search input to be completely fresh
     initializeFreshSearchInput();
+
+    // Load tag creation order from localStorage
+    loadTagCreationOrder();
 
     // Selection and project event listeners
     selectAllBtn.addEventListener('click', selectAllImages);
