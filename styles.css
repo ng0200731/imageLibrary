@@ -358,13 +358,17 @@ body {
     width: 150px;
     height: 150px;
     overflow: hidden;
+    flex-shrink: 0; /* Prevent shrinking */
+    box-sizing: border-box; /* Include border in size calculation */
 }
 
 .preview-card img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    object-position: center;
     display: block;
+    background-color: #f9f9f9;
 }
 
 /* Library card hover effect for clickable images */
@@ -1045,6 +1049,8 @@ body {
   .preview-card {
     width: 120px;
     height: 120px;
+    flex-shrink: 0;
+    box-sizing: border-box;
   }
 }
 
@@ -1057,6 +1063,8 @@ body {
   .preview-card {
     width: 180px;
     height: 180px;
+    flex-shrink: 0;
+    box-sizing: border-box;
   }
 
   .project-list {
