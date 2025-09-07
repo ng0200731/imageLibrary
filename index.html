@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Image Library — Minimal Shell v2.16.5</title>
-  <link rel="stylesheet" href="styles.css?v=2.16.5&bust=20250907073500" />
+  <title>Image Library — Minimal Shell v2.16.6</title>
+  <link rel="stylesheet" href="styles.css?v=2.16.6&bust=20250907074500" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.16.5</span>
+          <span class="version">v2.16.6</span>
       </div>
 
       <div class="sidebar__footer">
@@ -717,26 +717,28 @@
 
                 card.appendChild(eyeIcon);
 
-                // Add tag overlay for matching tags OR for tag-selected images
+                // Add tag overlay - show tags on ALL images
                 const matchingTags = getMatchingTags(image.tags || [], currentSearchTags);
                 const isTagSelected = tagSelectedImages.includes(image.id);
+                const imageTags = image.tags || [];
 
-                if (matchingTags.length > 0) {
-                    // Show overlay for current search matches (priority display)
+                if (imageTags.length > 0) {
                     const tagOverlay = document.createElement('div');
                     tagOverlay.className = 'tag-overlay';
-                    tagOverlay.textContent = matchingTags.join(', ');
-                    card.appendChild(tagOverlay);
-                } else if (isTagSelected) {
-                    // ALWAYS show overlay for historically tag-selected images
-                    // This ensures ALL tagged images maintain their tag overlays
-                    const imageTags = image.tags || [];
-                    if (imageTags.length > 0) {
-                        const tagOverlay = document.createElement('div');
-                        tagOverlay.className = 'tag-overlay';
-                        tagOverlay.textContent = imageTags.slice(0, 3).join(', '); // Show first 3 tags
-                        card.appendChild(tagOverlay);
+
+                    if (matchingTags.length > 0) {
+                        // Highlight matching tags for current search
+                        tagOverlay.classList.add('has-matches');
+                        tagOverlay.textContent = matchingTags.join(', ');
+                    } else {
+                        // Show first 3 tags for all other images
+                        tagOverlay.textContent = imageTags.slice(0, 3).join(', ');
+                        if (imageTags.length > 3) {
+                            tagOverlay.textContent += ` +${imageTags.length - 3}`;
+                        }
                     }
+
+                    card.appendChild(tagOverlay);
                 }
 
                 // Handle selection state

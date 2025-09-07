@@ -387,19 +387,28 @@ body {
     top: 4px;
     left: 4px;
     right: 4px;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.75);
     color: #fff;
     padding: 4px 6px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     text-align: center;
-    border-radius: 2px;
+    border-radius: 3px;
     pointer-events: none;
     z-index: 10;
-    max-height: 20px;
+    max-height: 22px;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Highlighted tag overlay for search matches */
+.tag-overlay.has-matches {
+    background: rgba(255, 193, 7, 0.9);
+    color: #000;
+    border: 1px solid #ffc107;
+    font-weight: 700;
 }
 
 /* Preview card delete button */
