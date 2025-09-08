@@ -1890,3 +1890,86 @@ body {
   border-color: #ccc;
   cursor: not-allowed;
 }
+
+/* Update Tag Modal */
+.update-tag-modal-content {
+  width: 33.33vw !important; /* 1/3 of screen width */
+  height: 50vh !important; /* 1/2 of screen height */
+  max-width: none !important;
+  max-height: none !important;
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.update-tag-body {
+  flex: 1;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.tag-columns {
+  display: flex;
+  height: 100%;
+  gap: 1px;
+}
+
+.tag-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ddd;
+  background: #f9f9f9;
+}
+
+.tag-column h3 {
+  margin: 0;
+  padding: 12px;
+  background: #e9e9e9;
+  border-bottom: 1px solid #ddd;
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.tags-list {
+  flex: 1;
+  padding: 8px;
+  overflow-y: auto;
+  background: white;
+}
+
+.tag-item {
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: 2px;
+  display: inline-block;
+  font-size: 12px;
+}
+
+.tag-input-section {
+  padding: 8px;
+  border-top: 1px solid #ddd;
+  background: #f9f9f9;
+  display: flex;
+  gap: 4px;
+}
+
+.tag-input-section input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.tag-input-section button {
+  padding: 4px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}

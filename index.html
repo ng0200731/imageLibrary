@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.43</span>
+          <span class="version">v2.17.44</span>
       </div>
 
       <div class="sidebar__footer">
@@ -337,6 +337,36 @@
         </div>
       </div>
 
+      <!-- Update Tag Modal -->
+      <div id="update-tag-modal" class="modal-overlay is-hidden">
+        <div class="modal-content update-tag-modal-content">
+          <div class="modal-header">
+            <h2>Update Tags</h2>
+            <button id="update-tag-close" class="modal-close-btn">✕</button>
+          </div>
+          <div class="modal-body update-tag-body">
+            <div class="tag-columns">
+              <div class="tag-column">
+                <h3>Original Tags</h3>
+                <div id="original-tags-list" class="tags-list">
+                  <!-- Original tags will be populated here -->
+                </div>
+              </div>
+              <div class="tag-column">
+                <h3>New Tags</h3>
+                <div id="new-tags-list" class="tags-list">
+                  <!-- New tags will be populated here -->
+                </div>
+                <div class="tag-input-section">
+                  <input type="text" id="new-tag-input" placeholder="Add new tags..." />
+                  <button id="add-new-tag-btn" class="button">Add</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
   <script>
     // --- Constants & State ---
     const API_URL = 'http://localhost:3000';
@@ -429,6 +459,14 @@
     const cancelShareBtn = document.getElementById('cancel-share-btn');
     const sendShareBtn = document.getElementById('send-share-btn');
     const emailSendingOverlay = document.getElementById('email-sending-overlay');
+
+    // Update tag modal elements
+    const updateTagModal = document.getElementById('update-tag-modal');
+    const updateTagClose = document.getElementById('update-tag-close');
+    const originalTagsList = document.getElementById('original-tags-list');
+    const newTagsList = document.getElementById('new-tags-list');
+    const newTagInput = document.getElementById('new-tag-input');
+    const addNewTagBtn = document.getElementById('add-new-tag-btn');
 
     // Image preview overlay elements
     const imagePreviewOverlay = document.getElementById('image-preview-overlay');
@@ -2681,6 +2719,43 @@
         delete shareProjectModal.dataset.projectName;
     }
 
+    // Update Tag Modal Functions
+    function showUpdateTagModal() {
+        console.log('showUpdateTagModal called');
+
+        // Get all unique tags from selected images
+        const originalTags = new Set();
+        selectedImages.forEach(imageId => {
+            const image = libraryImages.find(img => img.id === imageId);
+            if (image && image.tags) {
+                image.tags.forEach(tag => originalTags.add(tag));
+            }
+        });
+
+        // Populate original tags list
+        originalTagsList.innerHTML = '';
+        Array.from(originalTags).sort().forEach(tag => {
+            const tagElement = document.createElement('div');
+            tagElement.className = 'tag-item';
+            tagElement.textContent = tag;
+            originalTagsList.appendChild(tagElement);
+        });
+
+        // Clear new tags list
+        newTagsList.innerHTML = '';
+        newTagInput.value = '';
+
+        // Show modal
+        updateTagModal.classList.remove('is-hidden');
+    }
+
+    function hideUpdateTagModal() {
+        updateTagModal.classList.add('is-hidden');
+        originalTagsList.innerHTML = '';
+        newTagsList.innerHTML = '';
+        newTagInput.value = '';
+    }
+
     async function shareProject() {
         const email = shareEmailInput.value.trim();
         const message = shareMessageInput.value.trim();
@@ -3045,8 +3120,8 @@
     selectAllBtn.addEventListener('click', selectAllImages);
     deselectAllBtn.addEventListener('click', deselectAllImages);
     updateTagBtn.addEventListener('click', () => {
-        console.log('Update Tag button clicked - no action implemented yet');
-        // TODO: Implement update tag functionality
+        console.log('Update Tag button clicked - showing modal');
+        showUpdateTagModal();
     });
     viewPoolBtn.addEventListener('click', handleViewPoolClick);
     backToLibraryBtn.addEventListener('click', backToLibrary);
@@ -3141,6 +3216,9 @@
     shareProjectClose.addEventListener('click', hideShareProjectModal);
     cancelShareBtn.addEventListener('click', hideShareProjectModal);
     sendShareBtn.addEventListener('click', shareProject);
+
+    // Update tag modal event listeners
+    updateTagClose.addEventListener('click', hideUpdateTagModal);
 
     // Share email input enter key (only Enter, no ESC)
     shareEmailInput.addEventListener('keydown', (e) => {
