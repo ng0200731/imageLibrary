@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.19</span>
+          <span class="version">v2.17.24</span>
       </div>
 
       <div class="sidebar__footer">
@@ -496,7 +496,22 @@
             });
         });
 
-        console.log('Final sequence:', result.map(img =>
+        // Add untagged images that are manually selected (preserve manual selections)
+        const untaggedImages = images.filter(image => {
+            const imageTags = image.tags || [];
+            const isUntagged = imageTags.length === 0;
+            const isManuallySelected = selectedImages.includes(image.id) && !tagSelectedImages.includes(image.id);
+            return isUntagged && isManuallySelected;
+        });
+
+        console.log('Untagged manually selected images:', untaggedImages.map(img => `${img.id} (manual selection)`));
+
+        // Add untagged manually selected images at the end
+        untaggedImages.forEach(image => {
+            result.push(image);
+        });
+
+        console.log('Final sequence (with untagged manual selections):', result.map(img =>
             `${img.id}: [${img.tags?.join(',') || 'untagged'}] uploaded: ${img.uploadTime}`
         ));
         console.log('=== groupImagesByTagsAndSort END ===');
@@ -611,14 +626,26 @@
 
             if (isPoolView) {
                 console.log('=== POOL VIEW LOGIC ===');
-                // Pool view - show only selected images, grouped by tags and sorted by latest tagged images first
-                imagesToDisplay = allImages.filter(img => selectedImages.includes(img.id));
-                console.log('Pool view filtered images:', imagesToDisplay.length);
+                // Pool view - show ALL selected images (both manual and tag-selected)
+                const allSelectedImageIds = [...new Set([...selectedImages, ...tagSelectedImages])];
+                imagesToDisplay = allImages.filter(img => allSelectedImageIds.includes(img.id));
+                console.log('Pool view filtered images:', imagesToDisplay.length, '(manual + tag selected)');
 
-                // Group images by tags and sort by latest tagged images first
-                imagesToDisplay = groupImagesByTagsAndSort(imagesToDisplay);
+                // Only group by tags if there are search tags active, otherwise show all selected images
+                if (currentSearchTags.length > 0) {
+                    console.log('Pool view with search tags - grouping by tags');
+                    imagesToDisplay = groupImagesByTagsAndSort(imagesToDisplay);
+                } else {
+                    console.log('Pool view without search tags - showing all selected images by selection order');
+                    // Sort by selection order (most recently selected first)
+                    imagesToDisplay.sort((a, b) => {
+                        const orderA = imageSelectionOrder[a.id] || 0;
+                        const orderB = imageSelectionOrder[b.id] || 0;
+                        return orderB - orderA; // Latest selection first
+                    });
+                }
 
-                console.log('Pool view - grouped by tags and sorted by latest tagged images first');
+                console.log('Pool view processing completed');
             } else if (currentSearchTags.length === 0) {
                 console.log('=== LIBRARY VIEW WITH NO TAGS ===');
                 // Library view with no search tags - show all images, latest first
@@ -662,6 +689,13 @@
                 });
 
                 tagSelectedImages = [...new Set([...tagSelectedImages, ...newTagSelectedImages])];
+
+                // Also add new tag-selected images to main selectedImages array for pool view
+                newTagSelectedImages.forEach(imageId => {
+                    if (!selectedImages.includes(imageId)) {
+                        selectedImages.push(imageId);
+                    }
+                });
 
                 // Add tag-matching images
                 tagMatchingImages.forEach(img => {
