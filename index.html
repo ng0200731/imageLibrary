@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.41</span>
+          <span class="version">v2.17.43</span>
       </div>
 
       <div class="sidebar__footer">
@@ -61,6 +61,7 @@
               <button id="clear-all-tags" class="button clear-tags-btn" type="button">Clear All</button>
             </div>
             <div id="library-search-chips" class="chips search-chips"></div>
+            <button id="update-tag-btn" class="button update-tag-btn is-hidden" type="button">Update Tag</button>
 
           </div>
           <div id="library-grid" class="preview-grid"></div>
@@ -389,6 +390,7 @@
     const selectionControls = document.getElementById('selection-controls');
     const selectAllBtn = document.getElementById('select-all-btn');
     const deselectAllBtn = document.getElementById('deselect-all-btn');
+    const updateTagBtn = document.getElementById('update-tag-btn');
     const viewPoolBtn = document.getElementById('view-pool-btn');
     const backToLibraryBtn = document.getElementById('back-to-library-btn');
     const addToProjectBtn = document.getElementById('add-to-project-btn');
@@ -1642,7 +1644,7 @@
         const showingSelectionPool = isShowingSelectionPool();
 
         if (isPoolView) {
-            // Pool view: Show all 4 buttons (Select All, Deselect All, Back to Library, Add to Project)
+            // Pool view: Show all buttons (Select All, Deselect All, Back to Library, Add to Project)
             viewPoolBtn.classList.add('is-hidden');
             viewPoolBtn.disabled = true;
 
@@ -1658,7 +1660,11 @@
 
             addToProjectBtn.disabled = !hasSelections; // Dimmed when no selections
 
-            console.log('Set buttons for pool view - showing all 4 buttons');
+            // Show Update Tag button only in pool view when there are selections
+            updateTagBtn.classList.remove('is-hidden');
+            updateTagBtn.disabled = !hasSelections; // Dimmed when no selections
+
+            console.log('Set buttons for pool view - showing all buttons');
         } else {
             // Library view: Show library controls, hide back button
             viewPoolBtn.classList.remove('is-hidden');
@@ -1685,6 +1691,9 @@
 
             addToProjectBtn.disabled = !hasSelections; // Dimmed when no selections
 
+            // Hide Update Tag button in library view
+            updateTagBtn.classList.add('is-hidden');
+
             console.log('Set buttons for library view, showingSelectionPool:', showingSelectionPool);
         }
 
@@ -1695,6 +1704,7 @@
         console.log('selectAllBtn - hidden:', selectAllBtn.classList.contains('is-hidden'), 'disabled:', selectAllBtn.disabled);
         console.log('deselectAllBtn - hidden:', deselectAllBtn.classList.contains('is-hidden'), 'disabled:', deselectAllBtn.disabled);
         console.log('addToProjectBtn - disabled:', addToProjectBtn.disabled);
+        console.log('updateTagBtn - hidden:', updateTagBtn.classList.contains('is-hidden'), 'disabled:', updateTagBtn.disabled);
     }
 
     function selectAllImages() {
@@ -3034,6 +3044,10 @@
     // Selection and project event listeners
     selectAllBtn.addEventListener('click', selectAllImages);
     deselectAllBtn.addEventListener('click', deselectAllImages);
+    updateTagBtn.addEventListener('click', () => {
+        console.log('Update Tag button clicked - no action implemented yet');
+        // TODO: Implement update tag functionality
+    });
     viewPoolBtn.addEventListener('click', handleViewPoolClick);
     backToLibraryBtn.addEventListener('click', backToLibrary);
     addToProjectBtn.addEventListener('click', showProjectNameModal);

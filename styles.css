@@ -704,6 +704,29 @@ body {
   color: #999;
 }
 
+.update-tag-btn {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 8px;
+  width: 100%;
+  max-width: 120px;
+  transition: all 0.2s ease;
+}
+
+.update-tag-btn:hover {
+  background: #45a049;
+}
+
+.update-tag-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+}
+
 /* Search chips container */
 .search-chips {
   margin-top: 8px;
