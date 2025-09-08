@@ -261,7 +261,7 @@ function generateHtmlContent(projectData, senderMessage) {
             <div class="project-info">
                 <h2>📊 Project Details</h2>
                 <p><strong>Project Name:</strong> ${projectData.name}</p>
-                <p><strong>Total Images:</strong> ${projectData.images.length} images</p>
+                <p><strong>${projectData.breakdown_text || `Total Images: ${projectData.images.length} images`}</strong></p>
                 <p><strong>Created:</strong> ${projectData.created_at || 'Unknown'}</p>
             </div>
     `;

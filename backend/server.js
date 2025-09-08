@@ -276,7 +276,7 @@ app.delete('/projects/:id', (req, res) => {
 // 7. Share Project via Email
 app.post('/projects/:id/share', async (req, res) => {
     const projectId = req.params.id;
-    const { recipient_email, message } = req.body;
+    const { recipient_email, message, breakdown_text } = req.body;
 
     if (!recipient_email) {
         return res.status(400).send('Recipient email is required');
@@ -314,7 +314,8 @@ app.post('/projects/:id/share', async (req, res) => {
         const projectData = {
             name: project.name,
             created_at: project.created_at,
-            images: imagesWithTags
+            images: imagesWithTags,
+            breakdown_text: breakdown_text  // Pass the breakdown text from frontend
         };
 
         // Send email

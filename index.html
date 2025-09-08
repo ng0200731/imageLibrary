@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.27</span>
+          <span class="version">v2.17.37</span>
       </div>
 
       <div class="sidebar__footer">
@@ -1903,12 +1903,20 @@
     }
 
     function showProjectDetailModal(project) {
+        console.log('=== SHOWPROJECTDETAILMODAL START ===');
         console.log('Opening project detail modal for:', project);
 
         // Update header information
         projectDetailName.textContent = `📁 ${project.name}`;
         projectDetailDate.textContent = `📅 Created: ${new Date(project.created_at).toLocaleDateString()}`;
-        projectDetailCount.textContent = `📊 Total Images: ${project.image_ids.length}`;
+
+        // Generate detailed count with breakdown using the formatting function
+        // Pass the project as fallback for existing projects without breakdown data
+        console.log('Project detail - project:', project);
+        console.log('Project detail - selection_breakdown:', project.selection_breakdown);
+        const countText = formatSelectionBreakdown(project.selection_breakdown, project);
+        console.log('Project detail - countText:', countText);
+        projectDetailCount.textContent = countText;
 
         // Get unique tags from project images
         const projectTags = getProjectTags(project.image_ids);
@@ -1935,6 +1943,114 @@
             }
         });
         return Array.from(allTags);
+    }
+
+    function generateSelectionBreakdown() {
+        // Get current search tags
+        const currentSearchTags = searchTags.map(tag => tag.text);
+
+        // Count images by tag
+        const tagCounts = {};
+        const manuallySelectedImages = [];
+
+        // Analyze each selected image
+        selectedImages.forEach(imageId => {
+            const image = libraryImages.find(img => img.id === imageId);
+            if (!image) return;
+
+            const imageTags = image.tags || [];
+            let foundInSearchTags = false;
+
+            // Check which search tags this image matches
+            currentSearchTags.forEach(searchTag => {
+                if (imageTags.includes(searchTag)) {
+                    tagCounts[searchTag] = (tagCounts[searchTag] || 0) + 1;
+                    foundInSearchTags = true;
+                }
+            });
+
+            // If image doesn't match any search tags, it's manually selected
+            if (!foundInSearchTags) {
+                manuallySelectedImages.push(imageId);
+            }
+        });
+
+        return {
+            tagCounts,
+            manuallySelectedCount: manuallySelectedImages.length,
+            totalImages: selectedImages.length
+        };
+    }
+
+    function generateBreakdownFromProject(project) {
+        // For existing projects without breakdown data, analyze the images
+        const imageIds = project.image_ids || [];
+        const tagCounts = {};
+        let totalImages = imageIds.length;
+
+        console.log('generateBreakdownFromProject - imageIds:', imageIds);
+        console.log('generateBreakdownFromProject - libraryImages.length:', libraryImages.length);
+
+        // Count images by tag
+        imageIds.forEach(imageId => {
+            const image = libraryImages.find(img => img.id === imageId);
+            console.log(`Image ${imageId}:`, image ? `found with tags: ${image.tags}` : 'not found');
+            if (image && image.tags) {
+                image.tags.forEach(tag => {
+                    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                });
+            }
+        });
+
+        console.log('generateBreakdownFromProject - tagCounts:', tagCounts);
+
+        return {
+            tagCounts,
+            manuallySelectedCount: 0, // Can't determine for existing projects
+            totalImages
+        };
+    }
+
+    function formatSelectionBreakdown(breakdown, project = null) {
+        console.log('formatSelectionBreakdown called with breakdown:', breakdown, 'project:', project);
+
+        // If no breakdown provided, try to generate one from project data
+        if (!breakdown && project) {
+            console.log('No breakdown provided, generating from project...');
+            breakdown = generateBreakdownFromProject(project);
+        }
+
+        if (!breakdown) {
+            console.log('No breakdown available, using simple format');
+            return `📊 Total Images: ${project?.image_ids?.length || 0}`;
+        }
+
+        console.log('Using breakdown:', breakdown);
+
+        const tagBreakdowns = [];
+
+        // Add tag counts
+        Object.entries(breakdown.tagCounts || {}).forEach(([tag, count]) => {
+            tagBreakdowns.push(`${tag} - ${count} image${count !== 1 ? 's' : ''}`);
+        });
+
+        // Add manually selected count (only if we have the data)
+        if (breakdown.manuallySelectedCount > 0) {
+            tagBreakdowns.push(`${breakdown.manuallySelectedCount} manually selected`);
+        }
+
+        // If no tag breakdowns but we have images, they must be manually selected (for existing projects)
+        if (tagBreakdowns.length === 0 && breakdown.totalImages > 0 && !breakdown.tagCounts) {
+            tagBreakdowns.push(`${breakdown.totalImages} manually selected`);
+        }
+
+        let result = `📊 Total Images: ${breakdown.totalImages}`;
+        if (tagBreakdowns.length > 0) {
+            result += ` (${tagBreakdowns.join(', ')})`;
+        }
+
+        console.log('Final formatted result:', result);
+        return result;
     }
 
     async function loadProjectImages(imageIds) {
@@ -2276,7 +2392,9 @@
         const imageCount = selectedImages.length;
 
         try {
-            const newProject = await saveProjectToAPI(projectName, [...selectedImages]);
+            // Generate selection breakdown before saving
+            const breakdown = generateSelectionBreakdown();
+            const newProject = await saveProjectToAPI(projectName, [...selectedImages], breakdown);
             displayProjects();
 
             // Store the created project for navigation
@@ -2309,17 +2427,24 @@
         }
     }
 
-    async function saveProjectToAPI(projectName, imageIds) {
+    async function saveProjectToAPI(projectName, imageIds, breakdown = null) {
         try {
+            const projectData = {
+                name: projectName,
+                image_ids: imageIds
+            };
+
+            // Add breakdown metadata if provided
+            if (breakdown) {
+                projectData.selection_breakdown = breakdown;
+            }
+
             const response = await fetch(`${API_URL}/projects`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    name: projectName,
-                    image_ids: imageIds
-                })
+                body: JSON.stringify(projectData)
             });
 
             if (response.ok) {
@@ -2531,15 +2656,28 @@
         emailSendingOverlay.classList.remove('is-hidden');
 
         try {
+            // Get the project data to include breakdown in email
+            const project = projects.find(p => p.id == projectId);
+            const breakdownText = formatSelectionBreakdown(project?.selection_breakdown, project);
+
+            console.log('=== EMAIL SHARING ===');
+            console.log('Project for email:', project);
+            console.log('Breakdown text being sent:', breakdownText);
+
+            const emailData = {
+                recipient_email: email,
+                message: message,
+                breakdown_text: breakdownText  // Send formatted breakdown to backend
+            };
+
+            console.log('Email data being sent to backend:', emailData);
+
             const response = await fetch(`${API_URL}/projects/${projectId}/share`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    recipient_email: email,
-                    message: message
-                })
+                body: JSON.stringify(emailData)
             });
 
             if (response.ok) {
