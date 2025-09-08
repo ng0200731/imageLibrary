@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.15</span>
+          <span class="version">v2.17.19</span>
       </div>
 
       <div class="sidebar__footer">
@@ -594,11 +594,13 @@
     }
 
     async function displayLibraryImages() {
-        console.log('displayLibraryImages called, selectedImages at start:', selectedImages);
-        console.log('isPoolView:', isPoolView);
+        console.log('=== displayLibraryImages START ===');
+        console.log('displayLibraryImages called, selectedImages at start:', selectedImages.length);
+        console.log('isPoolView at start:', isPoolView);
 
         const searchMode = 'OR'; // Default to OR mode since radio buttons removed
         const currentSearchTags = searchTags.map(tag => tag.text);
+        console.log('currentSearchTags:', currentSearchTags);
 
         try {
             // Get all images first
@@ -608,14 +610,17 @@
             let imagesToDisplay = [];
 
             if (isPoolView) {
+                console.log('=== POOL VIEW LOGIC ===');
                 // Pool view - show only selected images, grouped by tags and sorted by latest tagged images first
                 imagesToDisplay = allImages.filter(img => selectedImages.includes(img.id));
+                console.log('Pool view filtered images:', imagesToDisplay.length);
 
                 // Group images by tags and sort by latest tagged images first
                 imagesToDisplay = groupImagesByTagsAndSort(imagesToDisplay);
 
                 console.log('Pool view - grouped by tags and sorted by latest tagged images first');
             } else if (currentSearchTags.length === 0) {
+                console.log('=== LIBRARY VIEW WITH NO TAGS ===');
                 // Library view with no search tags - show all images, latest first
                 // DON'T clear tagSelectedImages here - preserve historical tag selections
                 imagesToDisplay = allImages;
@@ -623,7 +628,7 @@
                 // Sort by image ID in descending order (latest uploads first)
                 imagesToDisplay.sort((a, b) => b.id - a.id);
 
-                console.log('Library view with no active tags, sorted latest first, preserving tagSelectedImages:', tagSelectedImages);
+                console.log('Library view with no active tags, sorted latest first, preserving tagSelectedImages:', tagSelectedImages.length);
             } else {
                 // Library view with search tags - show tag-matching + manually selected images
                 console.log('Fetching tag-matching images for tags:', currentSearchTags);
@@ -681,12 +686,19 @@
                 console.log('Tag-selected images:', tagSelectedImages);
             }
 
-            // Update header based on view type
+            // Update header based on view type - prioritize isPoolView flag
+            console.log('=== TITLE UPDATE LOGIC ===');
+            console.log('About to update title - isPoolView:', isPoolView);
+            console.log('currentSearchTags.length:', currentSearchTags.length);
+            
             if (isPoolView) {
-                updateLibraryTitle(true); // Selection Pool
+                console.log('Setting title to Selection Pool (isPoolView=true)');
+                updateLibraryTitle(true); // Selection Pool (explicit pool view)
             } else if (currentSearchTags.length > 0) {
-                updateLibraryTitle(true); // Filtered view (also Selection Pool)
+                console.log('Setting title to Selection Pool (has search tags)');
+                updateLibraryTitle(true); // Filtered view (acts like Selection Pool)
             } else {
+                console.log('Setting title to regular Library');
                 updateLibraryTitle(false); // Full library
             }
 
@@ -718,11 +730,22 @@
             libraryImages = []; // Reset library images array
             // Keep existing selected images - don't reset selectedImages array
 
+            // Special handling for pool view with no images
+            if (isPoolView && images.length === 0) {
+                const noImagesMessage = document.createElement('div');
+                noImagesMessage.className = 'no-images-message';
+                noImagesMessage.style.textAlign = 'center';
+                noImagesMessage.style.padding = '40px';
+                noImagesMessage.style.color = '#666';
+                noImagesMessage.innerHTML = '<p>No images in selection pool.</p><p>You can use "Back to Library" to return to the main library and select more images.</p>';
+                libraryGrid.appendChild(noImagesMessage);
+            }
+
             // Check which tags have matches and update chip colors
             await updateTagChipColors(currentSearchTags, searchMode);
 
             // Add tag group headers in Selection Pool view
-            if (isPoolView) {
+            if (isPoolView && images.length > 0) {
                 addTagGroupHeaders(images);
             }
 
@@ -869,7 +892,8 @@
             });
 
             // Show selection controls if there are images and search is active OR if we have selections
-            if (images.length > 0 && (currentSearchTags.length > 0 || selectedImages.length > 0)) {
+            // SPECIAL CASE: Always show controls in pool view, even with no images/selections
+            if ((images.length > 0 && (currentSearchTags.length > 0 || selectedImages.length > 0)) || isPoolView) {
                 selectionControls.classList.remove('is-hidden');
                 updateSelectionState(); // This will call updateButtonVisibility()
             } else {
@@ -1166,7 +1190,54 @@
         deleteBtn.textContent = '×';
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            removeSearchTagChip(text);
+            
+            // DIRECT FIX: Prevent any view changes when in pool view
+            if (isPoolView) {
+                // Remove from searchTags array
+                searchTags = searchTags.filter(tag => tag.text !== tagText);
+                
+                // Remove from tagCreationOrder
+                delete tagCreationOrder[tagText];
+                saveTagCreationOrder();
+                
+                // Find and remove images with this tag
+                const imagesToRemove = [];
+                selectedImages.forEach(imageId => {
+                    const image = libraryImages.find(img => img.id === imageId);
+                    if (image && image.tags && image.tags.includes(tagText)) {
+                        imagesToRemove.push(imageId);
+                    }
+                });
+                
+                selectedImages = selectedImages.filter(id => !imagesToRemove.includes(id));
+                tagSelectedImages = tagSelectedImages.filter(id => !imagesToRemove.includes(id));
+                
+                // Remove chip from DOM
+                const chips = librarySearchChips.querySelectorAll('.search-chip');
+                chips.forEach(chip => {
+                    if (chip.textContent.replace(/[×x]$/, '').trim() === tagText) {
+                        chip.remove();
+                    }
+                });
+                
+                // Update search input WITHOUT triggering events
+                librarySearchInput.value = searchTags.map(tag => tag.text).join(', ');
+                
+                // FORCE stay in pool view - lock the flag
+                isPoolView = true;
+                
+                // Manually refresh pool view display
+                displayLibraryImages();
+                
+                // FORCE the title after display
+                setTimeout(() => {
+                    updateLibraryTitle(true);
+                    isPoolView = true; // Double ensure
+                }, 10);
+                
+            } else {
+                removeSearchTagChip(tagText);
+            }
         });
 
         chip.appendChild(deleteBtn);
@@ -1174,11 +1245,110 @@
         updateClearButtonState();
     }
 
-    function removeSearchTagChip(tagText) {
+    function removeSearchTagChipInPoolView(tagText) {
+        console.log('=== removeSearchTagChipInPoolView START ===');
+        console.log('Removing tag in pool view:', tagText, 'MUST stay in pool view');
+        
+        const originalPoolView = isPoolView; // Preserve original state
+        
         // Remove from searchTags array
         searchTags = searchTags.filter(tag => tag.text !== tagText);
+        console.log('After removing tag, searchTags.length:', searchTags.length);
 
-        // Remove from DOM
+        // Remove from tagCreationOrder (this tag is no longer tracked)
+        delete tagCreationOrder[tagText];
+        saveTagCreationOrder();
+
+        // Find images that have the removed tag and remove them from selected images
+        const imagesToRemove = [];
+        
+        selectedImages.forEach(imageId => {
+            const image = libraryImages.find(img => img.id === imageId);
+            if (image && image.tags && image.tags.includes(tagText)) {
+                imagesToRemove.push(imageId);
+            }
+        });
+
+        // Remove these images from selections
+        selectedImages = selectedImages.filter(id => !imagesToRemove.includes(id));
+        tagSelectedImages = tagSelectedImages.filter(id => !imagesToRemove.includes(id));
+
+        // Remove selection timestamps for removed images
+        imagesToRemove.forEach(imageId => {
+            delete imageSelectionOrder[imageId];
+        });
+
+        console.log('Removed images with tag "' + tagText + '":', imagesToRemove);
+        console.log('Remaining selectedImages:', selectedImages.length);
+
+        // Remove chip from DOM
+        const chips = librarySearchChips.querySelectorAll('.search-chip');
+        chips.forEach(chip => {
+            if (chip.textContent.replace(/[×x]$/, '').trim() === tagText) {
+                chip.remove();
+            }
+        });
+
+        // Update search input manually (avoid triggering events)
+        const remainingTags = searchTags.map(tag => tag.text).join(', ');
+        librarySearchInput.value = remainingTags;
+        
+        // Force preserve pool view state
+        isPoolView = originalPoolView;
+        console.log('Forced isPoolView back to:', isPoolView);
+        
+        updateClearButtonState();
+        
+        // Directly refresh pool view without calling any functions that might reset state
+        console.log('About to refresh pool view display');
+        displayLibraryImages();
+        
+        // Double-check pool view state after display
+        if (!isPoolView && originalPoolView) {
+            console.log('WARNING: isPoolView was reset! Forcing it back to true');
+            isPoolView = true;
+            updateLibraryTitle(true);
+        }
+        
+        console.log('=== removeSearchTagChipInPoolView END ===');
+        console.log('Final isPoolView:', isPoolView);
+    }
+
+    function removeSearchTagChip(tagText) {
+        console.log('=== removeSearchTagChip START ===');
+        console.log('removeSearchTagChip called for tag:', tagText, 'isPoolView:', isPoolView);
+        
+        // Remove from searchTags array
+        searchTags = searchTags.filter(tag => tag.text !== tagText);
+        console.log('After removing tag, searchTags.length:', searchTags.length);
+
+        // Remove from tagCreationOrder (this tag is no longer tracked)
+        delete tagCreationOrder[tagText];
+        saveTagCreationOrder();
+
+        // Find images that have the removed tag and remove them from selected images
+        const imagesToRemove = [];
+        
+        selectedImages.forEach(imageId => {
+            const image = libraryImages.find(img => img.id === imageId);
+            if (image && image.tags && image.tags.includes(tagText)) {
+                imagesToRemove.push(imageId);
+            }
+        });
+
+        // Remove these images from selections
+        selectedImages = selectedImages.filter(id => !imagesToRemove.includes(id));
+        tagSelectedImages = tagSelectedImages.filter(id => !imagesToRemove.includes(id));
+
+        // Remove selection timestamps for removed images
+        imagesToRemove.forEach(imageId => {
+            delete imageSelectionOrder[imageId];
+        });
+
+        console.log('Removed images with tag "' + tagText + '":', imagesToRemove);
+        console.log('Remaining selectedImages:', selectedImages.length);
+
+        // Remove chip from DOM
         const chips = librarySearchChips.querySelectorAll('.search-chip');
         chips.forEach(chip => {
             if (chip.textContent.replace(/[×x]$/, '').trim() === tagText) {
@@ -1187,14 +1357,35 @@
         });
 
         // Update search input and refresh results
+        console.log('About to call updateSearchInput, isPoolView:', isPoolView);
         updateSearchInput();
+        console.log('After updateSearchInput, isPoolView:', isPoolView);
+        
         updateClearButtonState();
-        displayLibraryImages();
+        console.log('After updateClearButtonState, isPoolView:', isPoolView);
+        
+        // Stay in selection pool view if we were there
+        const wasInPoolView = isPoolView;
+        console.log('wasInPoolView saved as:', wasInPoolView);
+        
+        if (wasInPoolView) {
+            // Keep in pool view and refresh to show remaining selected images
+            console.log('About to call displayLibraryImages in pool view mode');
+            displayLibraryImages();
+        } else {
+            // If we were in library view, refresh the library view
+            console.log('About to call displayLibraryImages in library view mode');
+            displayLibraryImages();
+        }
+        
+        console.log('=== removeSearchTagChip END ===');
+        console.log('Final isPoolView:', isPoolView);
     }
 
 
 
     function clearAllSearchChips() {
+        console.log('=== clearAllSearchChips CALLED ===');
         console.log('clearAllSearchChips called - clearing everything and returning to main library');
         console.log('Before clear - searchTags:', searchTags.length, 'selectedImages:', selectedImages.length, 'tagSelectedImages:', tagSelectedImages.length, 'isPoolView:', isPoolView);
 
@@ -1219,6 +1410,7 @@
         });
 
         // Ensure we're in main library view (not pool view)
+        console.log('clearAllSearchChips - SETTING isPoolView = false');
         isPoolView = false;
 
         // Update UI states
@@ -1230,12 +1422,22 @@
 
         console.log('After clear - returned to main library with no selections or filters');
         console.log('Final state - searchTags:', searchTags.length, 'selectedImages:', selectedImages.length, 'isPoolView:', isPoolView);
+        console.log('=== clearAllSearchChips END ===');
     }
 
 
 
     function updateSearchInput() {
+        // Mark as programmatic update to prevent triggering clearAllSearchChips
+        librarySearchInput.dataset.programmaticUpdate = 'true';
         librarySearchInput.value = searchTags.map(tag => tag.text).join(', ');
+        
+        // Remove the flag using requestAnimationFrame for better reliability
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                delete librarySearchInput.dataset.programmaticUpdate;
+            }, 50);
+        });
     }
 
     function updateClearButtonState() {
@@ -1713,6 +1915,23 @@
                     openProjectImageLightbox(image, projectImages);
                 });
 
+                card.appendChild(img);
+
+                // Add tag overlay - show tags on project images (same style as library)
+                const imageTags = image.tags || [];
+                if (imageTags.length > 0) {
+                    const tagOverlay = document.createElement('div');
+                    tagOverlay.className = 'tag-overlay';
+
+                    // Show first 3 tags for project images
+                    tagOverlay.textContent = imageTags.slice(0, 3).join(', ');
+                    if (imageTags.length > 3) {
+                        tagOverlay.textContent += ` +${imageTags.length - 3}`;
+                    }
+
+                    card.appendChild(tagOverlay);
+                }
+
                 // Create icons container
                 const iconsContainer = document.createElement('div');
                 iconsContainer.className = 'project-image-icons';
@@ -1737,7 +1956,6 @@
                     iconsContainer.appendChild(handIcon);
                 }
 
-                card.appendChild(img);
                 if (iconsContainer.children.length > 0) {
                     card.appendChild(iconsContainer);
                 }
@@ -2491,10 +2709,24 @@
 
     // Also handle input changes for real-time search
     librarySearchInput.addEventListener('input', (e) => {
-        // If user clears the input, clear all chips
-        if (e.target.value === '') {
+        console.log('=== INPUT EVENT TRIGGERED ===');
+        console.log('Input value:', `"${e.target.value}"`);
+        console.log('programmaticUpdate flag:', e.target.dataset.programmaticUpdate);
+        console.log('isPoolView:', isPoolView);
+        
+        // IMPORTANT: Only clear chips if this is a USER action, not programmatic update
+        // Check if we're in the middle of removing a single tag chip
+        // ALSO: Don't clear all chips if we're in pool view to prevent losing pool context
+        if (e.target.value === '' && !e.target.dataset.programmaticUpdate && !isPoolView) {
+            console.log('CONDITIONS MET - calling clearAllSearchChips()');
             clearAllSearchChips();
+        } else {
+            console.log('CONDITIONS NOT MET - NOT calling clearAllSearchChips()');
+            console.log('- value empty:', e.target.value === '');
+            console.log('- not programmatic:', !e.target.dataset.programmaticUpdate);
+            console.log('- not pool view:', !isPoolView);
         }
+        console.log('=== INPUT EVENT END ===');
     });
 
     // Ensure input is fresh on focus
