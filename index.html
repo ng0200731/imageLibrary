@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.37</span>
+          <span class="version">v2.17.40</span>
       </div>
 
       <div class="sidebar__footer">
@@ -442,6 +442,7 @@
     let searchTags = []; // Store current search tags as chips
     let selectedImages = []; // Store selected image IDs for project creation
     let tagSelectedImages = []; // Store images selected by tags (always show tag icon)
+    let imageSelectionSource = {}; // Track how each image was selected: 'manual' or search tag name
     let imageSelectionOrder = {}; // Track selection timestamps for ordering
     let tagCreationOrder = {}; // Track when each tag was first created/used
     let projects = []; // Store created projects
@@ -694,6 +695,16 @@
                 // Update tag-selected images (add new ones, keep existing ones)
                 const newTagSelectedImages = tagMatchingImages.map(img => img.id);
                 const currentTimestamp = Date.now();
+
+                // Track how each image was selected - attribute to the current search operation
+                // For this search operation, all matching images are attributed to the search tags being used
+                const searchTagsString = currentSearchTags.join(','); // Create a unique identifier for this search
+                tagMatchingImages.forEach(image => {
+                    // Only set the source if this image wasn't already selected by a previous search
+                    if (!imageSelectionSource[image.id]) {
+                        imageSelectionSource[image.id] = searchTagsString;
+                    }
+                });
 
                 // Track selection timestamps for new tag-selected images
                 newTagSelectedImages.forEach(imageId => {
@@ -1259,6 +1270,11 @@
                 
                 selectedImages = selectedImages.filter(id => !imagesToRemove.includes(id));
                 tagSelectedImages = tagSelectedImages.filter(id => !imagesToRemove.includes(id));
+
+                // Clean up imageSelectionSource
+                imagesToRemove.forEach(imageId => {
+                    delete imageSelectionSource[imageId];
+                });
                 
                 // Remove chip from DOM
                 const chips = librarySearchChips.querySelectorAll('.search-chip');
@@ -1440,6 +1456,7 @@
         // Clear all search tags
         searchTags = [];
         tagSelectedImages = []; // Clear tag-selected images
+        imageSelectionSource = {}; // Clear selection source tracking
         librarySearchChips.innerHTML = '';
 
 
@@ -1571,8 +1588,9 @@
             selectedImages = selectedImages.filter(id => id !== imageId);
             cardElement.classList.remove('selected', 'manual-selection', 'tag-selection');
 
-            // Remove from selection order tracking
+            // Remove from selection order tracking and source tracking
             delete imageSelectionOrder[imageId];
+            delete imageSelectionSource[imageId];
 
             // Don't automatically re-select tag images - allow them to be fully deselected
         } else {
@@ -1582,6 +1600,9 @@
 
             // Track selection timestamp for ordering (latest first in pool view)
             imageSelectionOrder[imageId] = Date.now();
+
+            // Track as manual selection
+            imageSelectionSource[imageId] = 'manual';
 
             // Update CSS class based on selection type
             cardElement.classList.remove('manual-selection', 'tag-selection');
@@ -1687,6 +1708,9 @@
 
             // Track selection timestamp for ordering
             imageSelectionOrder[imageId] = currentTimestamp;
+
+            // Track as manual selection (select all is considered manual)
+            imageSelectionSource[imageId] = 'manual';
 
             // Add selected class
             card.classList.add('selected');
@@ -1949,35 +1973,51 @@
         // Get current search tags
         const currentSearchTags = searchTags.map(tag => tag.text);
 
-        // Count images by tag
+        console.log('generateSelectionBreakdown - currentSearchTags:', currentSearchTags);
+        console.log('generateSelectionBreakdown - selectedImages:', selectedImages);
+        console.log('generateSelectionBreakdown - imageSelectionSource:', imageSelectionSource);
+
+        // Count images by how they were selected
         const tagCounts = {};
-        const manuallySelectedImages = [];
+        let manuallySelectedCount = 0;
 
-        // Analyze each selected image
         selectedImages.forEach(imageId => {
-            const image = libraryImages.find(img => img.id === imageId);
-            if (!image) return;
+            const selectionSource = imageSelectionSource[imageId];
 
-            const imageTags = image.tags || [];
-            let foundInSearchTags = false;
+            if (selectionSource === 'manual') {
+                manuallySelectedCount++;
+            } else if (selectionSource) {
+                // This was selected by a search operation
+                // The selectionSource contains the search tags used (comma-separated)
+                const searchTagsUsed = selectionSource.split(',');
 
-            // Check which search tags this image matches
-            currentSearchTags.forEach(searchTag => {
-                if (imageTags.includes(searchTag)) {
-                    tagCounts[searchTag] = (tagCounts[searchTag] || 0) + 1;
-                    foundInSearchTags = true;
+                // For breakdown, we want to show which specific search tag this image should be attributed to
+                // Find which of the current search tags this image actually has
+                const image = libraryImages.find(img => img.id === imageId);
+                if (image && image.tags) {
+                    // Find the first current search tag that this image has
+                    const matchingTag = currentSearchTags.find(tag => image.tags.includes(tag));
+                    if (matchingTag) {
+                        tagCounts[matchingTag] = (tagCounts[matchingTag] || 0) + 1;
+                    } else {
+                        // Image was selected by search but doesn't match current tags (shouldn't happen)
+                        manuallySelectedCount++;
+                    }
+                } else {
+                    manuallySelectedCount++;
                 }
-            });
-
-            // If image doesn't match any search tags, it's manually selected
-            if (!foundInSearchTags) {
-                manuallySelectedImages.push(imageId);
+            } else {
+                // No selection source recorded, treat as manual
+                manuallySelectedCount++;
             }
         });
 
+        console.log('generateSelectionBreakdown - tagCounts:', tagCounts);
+        console.log('generateSelectionBreakdown - manuallySelectedCount:', manuallySelectedCount);
+
         return {
             tagCounts,
-            manuallySelectedCount: manuallySelectedImages.length,
+            manuallySelectedCount,
             totalImages: selectedImages.length
         };
     }
