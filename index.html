@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.24</span>
+          <span class="version">v2.17.27</span>
       </div>
 
       <div class="sidebar__footer">
@@ -524,41 +524,56 @@
         const addedTagHeaders = new Set();
         const tagGroups = new Map();
 
-        // Group images by their first/primary tag
+        // Group images by ALL their tags (not just first tag)
         images.forEach(image => {
             const imageTags = image.tags || [];
-            if (imageTags.length > 0) {
-                const primaryTag = imageTags[0]; // Use first tag as primary
-                if (!tagGroups.has(primaryTag)) {
-                    tagGroups.set(primaryTag, []);
+            imageTags.forEach(tag => {
+                if (!tagGroups.has(tag)) {
+                    tagGroups.set(tag, []);
                 }
-                tagGroups.get(primaryTag).push(image);
-            }
+                tagGroups.get(tag).push(image);
+            });
         });
 
-        // Add headers for each tag group
-        let currentTagGroup = null;
-        images.forEach((image, index) => {
-            const imageTags = image.tags || [];
-            const primaryTag = imageTags.length > 0 ? imageTags[0] : 'Untagged';
+        // Add headers based on tag creation order (same as groupImagesByTagsAndSort)
+        const currentSearchTags = searchTags.map(tag => tag.text);
 
-            // Add header if this is a new tag group
-            if (currentTagGroup !== primaryTag && !addedTagHeaders.has(primaryTag)) {
+        // Get all tags in reverse chronological order (same as groupImagesByTagsAndSort)
+        const allInputTags = Object.keys(tagCreationOrder).sort((a, b) => {
+            const timestampA = tagCreationOrder[a] || 0;
+            const timestampB = tagCreationOrder[b] || 0;
+            return timestampB - timestampA; // Latest tag first
+        });
+
+        // Add headers for each tag that has images, in the same order as display
+        allInputTags.forEach(tag => {
+            const imagesWithThisTag = images.filter(image => {
+                const imageTags = image.tags || [];
+                return imageTags.includes(tag);
+            });
+
+            if (imagesWithThisTag.length > 0 && !addedTagHeaders.has(tag)) {
                 const tagHeader = document.createElement('div');
                 tagHeader.className = 'tag-group-header';
-
-                if (primaryTag === 'Untagged') {
-                    tagHeader.textContent = 'Untagged Images';
-                } else {
-                    const groupCount = tagGroups.get(primaryTag)?.length || 0;
-                    tagHeader.textContent = `${primaryTag} (${groupCount} images)`;
-                }
-
+                tagHeader.textContent = `${tag} (${imagesWithThisTag.length} images)`;
                 libraryGrid.appendChild(tagHeader);
-                addedTagHeaders.add(primaryTag);
-                currentTagGroup = primaryTag;
+                addedTagHeaders.add(tag);
             }
         });
+
+        // Add header for untagged images if any exist
+        const untaggedImages = images.filter(image => {
+            const imageTags = image.tags || [];
+            return imageTags.length === 0;
+        });
+
+        if (untaggedImages.length > 0 && !addedTagHeaders.has('Untagged')) {
+            const tagHeader = document.createElement('div');
+            tagHeader.className = 'tag-group-header';
+            tagHeader.textContent = 'Untagged Images';
+            libraryGrid.appendChild(tagHeader);
+            addedTagHeaders.add('Untagged');
+        }
     }
 
     function updateLibraryTitle(isPoolView = false) {
@@ -778,8 +793,8 @@
             // Check which tags have matches and update chip colors
             await updateTagChipColors(currentSearchTags, searchMode);
 
-            // Add tag group headers in Selection Pool view
-            if (isPoolView && images.length > 0) {
+            // Add tag group headers in Selection Pool view OR when there are search tags active
+            if ((isPoolView || currentSearchTags.length > 0) && images.length > 0) {
                 addTagGroupHeaders(images);
             }
 
@@ -868,16 +883,15 @@
                     const tagOverlay = document.createElement('div');
                     tagOverlay.className = 'tag-overlay';
 
+                    // Always show all tags (or first 3 + count), but highlight if there are matches
                     if (matchingTags.length > 0) {
-                        // Highlight matching tags for current search
                         tagOverlay.classList.add('has-matches');
-                        tagOverlay.textContent = matchingTags.join(', ');
-                    } else {
-                        // Show first 3 tags for all other images
-                        tagOverlay.textContent = imageTags.slice(0, 3).join(', ');
-                        if (imageTags.length > 3) {
-                            tagOverlay.textContent += ` +${imageTags.length - 3}`;
-                        }
+                    }
+
+                    // Show first 3 tags for all images
+                    tagOverlay.textContent = imageTags.slice(0, 3).join(', ');
+                    if (imageTags.length > 3) {
+                        tagOverlay.textContent += ` +${imageTags.length - 3}`;
                     }
 
                     card.appendChild(tagOverlay);
