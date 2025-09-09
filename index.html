@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.49</span>
+          <span class="version">v2.17.52</span>
       </div>
 
       <div class="sidebar__footer">
@@ -372,6 +372,12 @@
             <button id="update-tag-cancel" class="button">Cancel</button>
             <button id="update-tag-save" class="button button-primary">Save</button>
           </div>
+          <!-- Success Overlay -->
+          <div id="tag-update-success-overlay" class="success-overlay is-hidden">
+            <div class="success-message">
+              <span>Tags updated successfully!</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -479,6 +485,7 @@
     const tagWarning = document.getElementById('tag-warning');
     const updateTagCancel = document.getElementById('update-tag-cancel');
     const updateTagSave = document.getElementById('update-tag-save');
+    const tagUpdateSuccessOverlay = document.getElementById('tag-update-success-overlay');
 
     // Image preview overlay elements
     const imagePreviewOverlay = document.getElementById('image-preview-overlay');
@@ -2762,6 +2769,15 @@
         removeAllTags = false;
         tagsToAdd.clear();
 
+        // Hide success overlay if visible
+        tagUpdateSuccessOverlay.classList.add('is-hidden');
+        tagUpdateSuccessOverlay.classList.remove('fade-out');
+
+        // Reset Remove All Tags button
+        const removeAllBtn = document.getElementById('remove-all-tags-btn');
+        removeAllBtn.textContent = 'Remove All Tags';
+        removeAllBtn.style.backgroundColor = '#f44336'; // Red for remove
+
         // Get all unique tags from selected images
         const originalTags = new Set();
         selectedImages.forEach(imageId => {
@@ -2818,6 +2834,15 @@
         tagsToRemove.clear();
         removeAllTags = false;
         tagsToAdd.clear();
+
+        // Reset Remove All Tags button
+        const removeAllBtn = document.getElementById('remove-all-tags-btn');
+        removeAllBtn.textContent = 'Remove All Tags';
+        removeAllBtn.style.backgroundColor = '#f44336'; // Red for remove
+
+        // Hide success overlay if visible
+        tagUpdateSuccessOverlay.classList.add('is-hidden');
+        tagUpdateSuccessOverlay.classList.remove('fade-out');
     }
 
     function removeIndividualTag(tag) {
@@ -2834,14 +2859,33 @@
     }
 
     function removeAllTagsFromSelected() {
-        console.log('Marking all tags for removal');
-        removeAllTags = true;
+        const removeAllBtn = document.getElementById('remove-all-tags-btn');
 
-        // Visual feedback - dim all tags
-        const tagElements = originalTagsList.querySelectorAll('.tag-item-removable');
-        tagElements.forEach(element => {
-            element.classList.add('marked-for-removal');
-        });
+        if (!removeAllTags) {
+            // Mark all tags for removal
+            console.log('Marking all tags for removal');
+            removeAllTags = true;
+            removeAllBtn.textContent = 'Undo Remove All';
+            removeAllBtn.style.backgroundColor = '#ff9800'; // Orange for undo
+
+            // Visual feedback - dim all tags
+            const tagElements = originalTagsList.querySelectorAll('.tag-item-removable');
+            tagElements.forEach(element => {
+                element.classList.add('marked-for-removal');
+            });
+        } else {
+            // Undo remove all tags
+            console.log('Undoing remove all tags');
+            removeAllTags = false;
+            removeAllBtn.textContent = 'Remove All Tags';
+            removeAllBtn.style.backgroundColor = '#f44336'; // Red for remove
+
+            // Remove visual feedback
+            const tagElements = originalTagsList.querySelectorAll('.tag-item-removable');
+            tagElements.forEach(element => {
+                element.classList.remove('marked-for-removal');
+            });
+        }
     }
 
     function addNewTags() {
@@ -2864,16 +2908,48 @@
             if (!tagsToAdd.has(tag)) {
                 tagsToAdd.add(tag);
 
-                // Add to visual list
+                // Add to visual list with X button
                 const tagElement = document.createElement('div');
-                tagElement.className = 'tag-item';
-                tagElement.textContent = tag;
+                tagElement.className = 'tag-item tag-item-removable';
+
+                const tagText = document.createElement('span');
+                tagText.textContent = tag;
+                tagElement.appendChild(tagText);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'tag-remove-btn';
+                removeBtn.textContent = '×';
+                removeBtn.onclick = () => removeNewTag(tag, tagElement);
+                tagElement.appendChild(removeBtn);
+
                 newTagsList.appendChild(tagElement);
             }
         });
 
         // Clear input
         newTagInput.value = '';
+    }
+
+    function removeNewTag(tag, tagElement) {
+        console.log('Removing new tag:', tag);
+        tagsToAdd.delete(tag);
+        tagElement.remove();
+    }
+
+    function showTagUpdateSuccess() {
+        // Show success overlay
+        tagUpdateSuccessOverlay.classList.remove('is-hidden');
+
+        // Fade out after 2 seconds
+        setTimeout(() => {
+            tagUpdateSuccessOverlay.classList.add('fade-out');
+
+            // Hide completely after fade animation
+            setTimeout(() => {
+                tagUpdateSuccessOverlay.classList.add('is-hidden');
+                tagUpdateSuccessOverlay.classList.remove('fade-out');
+            }, 300);
+        }, 2000);
     }
 
     async function saveTagUpdates() {
@@ -2924,11 +3000,16 @@
 
             console.log('Tag updates completed successfully');
 
+            // Show success overlay
+            showTagUpdateSuccess();
+
             // Refresh the library display
             await displayLibraryImages();
 
-            // Close modal
-            hideUpdateTagModal();
+            // Close modal after delay
+            setTimeout(() => {
+                hideUpdateTagModal();
+            }, 2000);
 
         } catch (error) {
             console.error('Error saving tag updates:', error);
