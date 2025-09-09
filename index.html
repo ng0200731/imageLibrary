@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.52</span>
+          <span class="version">v2.17.54</span>
       </div>
 
       <div class="sidebar__footer">
@@ -372,11 +372,15 @@
             <button id="update-tag-cancel" class="button">Cancel</button>
             <button id="update-tag-save" class="button button-primary">Save</button>
           </div>
-          <!-- Success Overlay -->
-          <div id="tag-update-success-overlay" class="success-overlay is-hidden">
-            <div class="success-message">
-              <span>Tags updated successfully!</span>
-            </div>
+        </div>
+      </div>
+
+      <!-- Tag Update Success Modal -->
+      <div id="tag-update-success-modal" class="modal is-hidden">
+        <div class="modal-content-text">
+          <p>Tags updated successfully!</p>
+          <div class="modal-buttons">
+            <button id="tag-update-continue-btn" class="button is-primary">Continue</button>
           </div>
         </div>
       </div>
@@ -485,7 +489,8 @@
     const tagWarning = document.getElementById('tag-warning');
     const updateTagCancel = document.getElementById('update-tag-cancel');
     const updateTagSave = document.getElementById('update-tag-save');
-    const tagUpdateSuccessOverlay = document.getElementById('tag-update-success-overlay');
+    const tagUpdateSuccessModal = document.getElementById('tag-update-success-modal');
+    const tagUpdateContinueBtn = document.getElementById('tag-update-continue-btn');
 
     // Image preview overlay elements
     const imagePreviewOverlay = document.getElementById('image-preview-overlay');
@@ -2769,9 +2774,8 @@
         removeAllTags = false;
         tagsToAdd.clear();
 
-        // Hide success overlay if visible
-        tagUpdateSuccessOverlay.classList.add('is-hidden');
-        tagUpdateSuccessOverlay.classList.remove('fade-out');
+        // Hide success modal if visible
+        tagUpdateSuccessModal.classList.add('is-hidden');
 
         // Reset Remove All Tags button
         const removeAllBtn = document.getElementById('remove-all-tags-btn');
@@ -2840,9 +2844,8 @@
         removeAllBtn.textContent = 'Remove All Tags';
         removeAllBtn.style.backgroundColor = '#f44336'; // Red for remove
 
-        // Hide success overlay if visible
-        tagUpdateSuccessOverlay.classList.add('is-hidden');
-        tagUpdateSuccessOverlay.classList.remove('fade-out');
+        // Hide success modal if visible
+        tagUpdateSuccessModal.classList.add('is-hidden');
     }
 
     function removeIndividualTag(tag) {
@@ -2937,19 +2940,12 @@
     }
 
     function showTagUpdateSuccess() {
-        // Show success overlay
-        tagUpdateSuccessOverlay.classList.remove('is-hidden');
+        // Show success modal
+        tagUpdateSuccessModal.classList.remove('is-hidden');
+    }
 
-        // Fade out after 2 seconds
-        setTimeout(() => {
-            tagUpdateSuccessOverlay.classList.add('fade-out');
-
-            // Hide completely after fade animation
-            setTimeout(() => {
-                tagUpdateSuccessOverlay.classList.add('is-hidden');
-                tagUpdateSuccessOverlay.classList.remove('fade-out');
-            }, 300);
-        }, 2000);
+    function hideTagUpdateSuccess() {
+        tagUpdateSuccessModal.classList.add('is-hidden');
     }
 
     async function saveTagUpdates() {
@@ -3000,16 +2996,14 @@
 
             console.log('Tag updates completed successfully');
 
-            // Show success overlay
-            showTagUpdateSuccess();
-
             // Refresh the library display
             await displayLibraryImages();
 
-            // Close modal after delay
-            setTimeout(() => {
-                hideUpdateTagModal();
-            }, 2000);
+            // Close update tag modal first
+            hideUpdateTagModal();
+
+            // Show success modal
+            showTagUpdateSuccess();
 
         } catch (error) {
             console.error('Error saving tag updates:', error);
@@ -3514,6 +3508,7 @@
     updateTagSave.addEventListener('click', saveTagUpdates);
     addNewTagBtn.addEventListener('click', addNewTags);
     removeAllTagsBtn.addEventListener('click', removeAllTagsFromSelected);
+    tagUpdateContinueBtn.addEventListener('click', hideTagUpdateSuccess);
 
     // Add tag input enter key support
     newTagInput.addEventListener('keydown', (e) => {
