@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.54</span>
+          <span class="version">v2.17.58</span>
       </div>
 
       <div class="sidebar__footer">
@@ -624,6 +624,10 @@
             return timestampB - timestampA; // Latest tag first
         });
 
+        // Create a container for tag headers (button-style)
+        const tagHeaderContainer = document.createElement('div');
+        tagHeaderContainer.className = 'tag-headers-container';
+
         // Add headers for each tag that has images, in the same order as display
         allInputTags.forEach(tag => {
             const imagesWithThisTag = images.filter(image => {
@@ -632,10 +636,10 @@
             });
 
             if (imagesWithThisTag.length > 0 && !addedTagHeaders.has(tag)) {
-                const tagHeader = document.createElement('div');
+                const tagHeader = document.createElement('span');
                 tagHeader.className = 'tag-group-header';
-                tagHeader.textContent = `${tag} (${imagesWithThisTag.length} images)`;
-                libraryGrid.appendChild(tagHeader);
+                tagHeader.textContent = `${tag} (${imagesWithThisTag.length})`;
+                tagHeaderContainer.appendChild(tagHeader);
                 addedTagHeaders.add(tag);
             }
         });
@@ -647,11 +651,16 @@
         });
 
         if (untaggedImages.length > 0 && !addedTagHeaders.has('Untagged')) {
-            const tagHeader = document.createElement('div');
+            const tagHeader = document.createElement('span');
             tagHeader.className = 'tag-group-header';
             tagHeader.textContent = 'Untagged Images';
-            libraryGrid.appendChild(tagHeader);
+            tagHeaderContainer.appendChild(tagHeader);
             addedTagHeaders.add('Untagged');
+        }
+
+        // Only add the container if it has headers
+        if (tagHeaderContainer.children.length > 0) {
+            libraryGrid.appendChild(tagHeaderContainer);
         }
     }
 
@@ -1072,13 +1081,27 @@
                 const response = await fetch(`${API_URL}/images?tags=${tagText}&mode=OR`);
                 const images = await response.json();
                 const hasMatches = images.length > 0;
+                const imageCount = images.length;
 
-                // Update the chip color based on matches
+                // Update the chip color and count based on matches
                 const chip = Array.from(librarySearchChips.querySelectorAll('.search-chip')).find(
-                    chip => chip.textContent.replace(/[×x]$/, '').trim() === tagText
+                    chip => {
+                        // Extract tag name from "tagname (count)" format
+                        const chipText = chip.textContent.replace(/[×x]$/, '').trim();
+                        const tagName = chipText.replace(/\s*\(\d+\)$/, '');
+                        return tagName === tagText;
+                    }
                 );
 
                 if (chip) {
+                    // Update the chip text with new count
+                    const deleteBtn = chip.querySelector('.chip-delete');
+                    chip.textContent = `${tagText} (${imageCount})`;
+                    if (deleteBtn) {
+                        chip.appendChild(deleteBtn); // Re-add the delete button
+                    }
+
+                    // Update color classes
                     if (hasMatches) {
                         chip.classList.remove('no-matches');
                         chip.classList.add('has-matches');
@@ -1296,7 +1319,7 @@
 
     // --- Search Tag Chip Functions ---
 
-    function addSearchTagChip(tagText, hasMatches = true) {
+    async function addSearchTagChip(tagText, hasMatches = true) {
         const text = tagText.toLowerCase().trim();
         if (!text) return;
 
@@ -1314,10 +1337,21 @@
         // Add to searchTags array
         searchTags.push({ text: text, hasMatches: hasMatches });
 
-        // Create chip element
+        // Create chip element with count
         const chip = document.createElement('span');
         chip.className = hasMatches ? 'chip search-chip' : 'chip search-chip no-matches';
-        chip.textContent = text;
+
+        // Get image count for this tag
+        let imageCount = 0;
+        try {
+            const response = await fetch(`${API_URL}/images?tags=${text}&mode=OR`);
+            const images = await response.json();
+            imageCount = images.length;
+        } catch (error) {
+            console.error(`Error getting count for tag "${text}":`, error);
+        }
+
+        chip.textContent = `${text} (${imageCount})`;
         chip.tabIndex = 0;
 
         // Add delete button
@@ -1357,7 +1391,10 @@
                 // Remove chip from DOM
                 const chips = librarySearchChips.querySelectorAll('.search-chip');
                 chips.forEach(chip => {
-                    if (chip.textContent.replace(/[×x]$/, '').trim() === tagText) {
+                    // Extract tag name from "tagname (count)" format
+                    const chipText = chip.textContent.replace(/[×x]$/, '').trim();
+                    const tagName = chipText.replace(/\s*\(\d+\)$/, '');
+                    if (tagName === tagText) {
                         chip.remove();
                     }
                 });
@@ -1426,7 +1463,10 @@
         // Remove chip from DOM
         const chips = librarySearchChips.querySelectorAll('.search-chip');
         chips.forEach(chip => {
-            if (chip.textContent.replace(/[×x]$/, '').trim() === tagText) {
+            // Extract tag name from "tagname (count)" format
+            const chipText = chip.textContent.replace(/[×x]$/, '').trim();
+            const tagName = chipText.replace(/\s*\(\d+\)$/, '');
+            if (tagName === tagText) {
                 chip.remove();
             }
         });
@@ -1493,7 +1533,10 @@
         // Remove chip from DOM
         const chips = librarySearchChips.querySelectorAll('.search-chip');
         chips.forEach(chip => {
-            if (chip.textContent.replace(/[×x]$/, '').trim() === tagText) {
+            // Extract tag name from "tagname (count)" format
+            const chipText = chip.textContent.replace(/[×x]$/, '').trim();
+            const tagName = chipText.replace(/\s*\(\d+\)$/, '');
+            if (tagName === tagText) {
                 chip.remove();
             }
         });
@@ -1737,6 +1780,8 @@
             deselectAllBtn.classList.remove('is-hidden');
             deselectAllBtn.disabled = !hasSelections; // Dimmed when no selections
 
+            // Show Add to Project button in pool view
+            addToProjectBtn.classList.remove('is-hidden');
             addToProjectBtn.disabled = !hasSelections; // Dimmed when no selections
 
             console.log('Set buttons for pool view - showing all buttons');
@@ -1764,7 +1809,9 @@
             deselectAllBtn.classList.remove('is-hidden');
             deselectAllBtn.disabled = !hasSelections; // Dimmed when no selections
 
-            addToProjectBtn.disabled = !hasSelections; // Dimmed when no selections
+            // Hide Add to Project button in library view
+            addToProjectBtn.classList.add('is-hidden');
+            addToProjectBtn.disabled = true;
 
             // Hide Update Tag button in library view
             updateTagBtn.classList.add('is-hidden');
@@ -1787,7 +1834,7 @@
         console.log('backToLibraryBtn - hidden:', backToLibraryBtn.classList.contains('is-hidden'), 'disabled:', backToLibraryBtn.disabled);
         console.log('selectAllBtn - hidden:', selectAllBtn.classList.contains('is-hidden'), 'disabled:', selectAllBtn.disabled);
         console.log('deselectAllBtn - hidden:', deselectAllBtn.classList.contains('is-hidden'), 'disabled:', deselectAllBtn.disabled);
-        console.log('addToProjectBtn - disabled:', addToProjectBtn.disabled);
+        console.log('addToProjectBtn - hidden:', addToProjectBtn.classList.contains('is-hidden'), 'disabled:', addToProjectBtn.disabled);
         console.log('updateTagBtn - hidden:', updateTagBtn.classList.contains('is-hidden'), 'disabled:', updateTagBtn.disabled);
     }
 
@@ -3294,10 +3341,10 @@
 
 
     // Handle tag input with Enter, Tab, or comma
-    librarySearchInput.addEventListener('keydown', (e) => {
+    librarySearchInput.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter' || e.key === 'Tab' || e.key === ',') {
             e.preventDefault();
-            handleSearchTagCommit();
+            await handleSearchTagCommit();
         }
         // Note: Backspace functionality for removing tag chips has been disabled
         // Users must use the "x" button on individual chips or "Clear All" button
@@ -3344,15 +3391,15 @@
         }, 100);
     });
 
-    function handleSearchTagCommit() {
+    async function handleSearchTagCommit() {
         const inputValue = librarySearchInput.value.trim();
         if (!inputValue) return;
 
         // Split by comma and add each tag as a chip
         const newTags = inputValue.split(',').map(tag => tag.trim()).filter(tag => tag);
-        newTags.forEach(tagText => {
-            addSearchTagChip(tagText, true); // Default to has matches, will be updated
-        });
+        for (const tagText of newTags) {
+            await addSearchTagChip(tagText, true); // Default to has matches, will be updated
+        }
 
         // Clear input and refresh search
         librarySearchInput.value = '';
