@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.47</span>
+          <span class="version">v2.17.49</span>
       </div>
 
       <div class="sidebar__footer">
@@ -2925,8 +2925,7 @@
             console.log('Tag updates completed successfully');
 
             // Refresh the library display
-            await loadLibraryImages();
-            displayLibraryImages();
+            await displayLibraryImages();
 
             // Close modal
             hideUpdateTagModal();
@@ -2938,19 +2937,33 @@
     }
 
     async function updateImageTags(imageId, tags) {
-        const response = await fetch(`${API_URL}/images/${imageId}/tags`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ tags: tags })
-        });
+        console.log(`Updating tags for image ${imageId}:`, tags);
+        console.log(`Making PUT request to: ${API_URL}/images/${imageId}/tags`);
 
-        if (!response.ok) {
-            throw new Error(`Failed to update tags for image ${imageId}`);
+        try {
+            const response = await fetch(`${API_URL}/images/${imageId}/tags`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ tags: tags })
+            });
+
+            console.log(`Response status: ${response.status} ${response.statusText}`);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`Server error response:`, errorText);
+                throw new Error(`Failed to update tags for image ${imageId}: ${response.status} ${response.statusText} - ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log(`Successfully updated tags for image ${imageId}:`, result);
+            return result;
+        } catch (error) {
+            console.error(`Network or parsing error for image ${imageId}:`, error);
+            throw error;
         }
-
-        return response.json();
     }
 
     async function shareProject() {

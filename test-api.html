@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>API Test</h1>
+    <button onclick="testGetImages()">Test GET /images</button>
+    <button onclick="testUpdateTags()">Test PUT /images/83/tags</button>
+    <div id="results"></div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+        const resultsDiv = document.getElementById('results');
+
+        function log(message) {
+            console.log(message);
+            resultsDiv.innerHTML += '<p>' + JSON.stringify(message) + '</p>';
+        }
+
+        async function testGetImages() {
+            try {
+                log('Testing GET /images...');
+                const response = await fetch(`${API_URL}/images`);
+                log(`Response status: ${response.status} ${response.statusText}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Success! Got ${data.length} images`);
+                    log('First few images: ' + JSON.stringify(data.slice(0, 3), null, 2));
+                } else {
+                    const errorText = await response.text();
+                    log(`Error: ${errorText}`);
+                }
+            } catch (error) {
+                log(`Network error: ${error.message}`);
+            }
+        }
+
+        async function testUpdateTags() {
+            try {
+                log('Testing PUT /images/83/tags...');
+                const response = await fetch(`${API_URL}/images/83/tags`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ tags: ['rabbit', 'test'] })
+                });
+                
+                log(`Response status: ${response.status} ${response.statusText}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('Success! Updated tags: ' + JSON.stringify(data, null, 2));
+                } else {
+                    const errorText = await response.text();
+                    log(`Error: ${errorText}`);
+                }
+            } catch (error) {
+                log(`Network error: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>
