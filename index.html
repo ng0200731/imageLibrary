@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.65</span>
+          <span class="version">v2.17.71</span>
       </div>
 
       <div class="sidebar__footer">
@@ -516,6 +516,7 @@
     let tagCreationOrder = {}; // Track when each tag was first created/used
     let projects = []; // Store created projects
     let isPoolView = false; // Track if we're viewing selection pool
+    let forceLibraryView = false; // Flag to prevent auto-switching to pool view
     let lastCreatedProject = null; // Store the last created project for navigation
 
     // Selection Pool preview navigation
@@ -895,9 +896,17 @@
             if (isPoolView) {
                 console.log('Setting title to Selection Pool (isPoolView=true)');
                 updateLibraryTitle(true); // Selection Pool (explicit pool view)
-            } else if (currentSearchTags.length > 0) {
-                console.log('Setting title to Selection Pool (has search tags)');
+            } else if (currentSearchTags.length > 0 && !forceLibraryView) {
+                console.log('Auto-switching to Selection Pool due to search tags');
+                console.log('currentSearchTags:', currentSearchTags);
+                isPoolView = true; // Auto-switch to pool view when tags are active
                 updateLibraryTitle(true); // Filtered view (acts like Selection Pool)
+                console.log('FORCED isPoolView to true due to search tags');
+            } else if (currentSearchTags.length > 0 && forceLibraryView) {
+                console.log('STAYING in Library view despite search tags (user requested)');
+                console.log('currentSearchTags:', currentSearchTags);
+                updateLibraryTitle(false); // Keep library title
+                forceLibraryView = false; // Reset flag after use
             } else {
                 console.log('Setting title to regular Library');
                 updateLibraryTitle(false); // Full library
@@ -1813,7 +1822,16 @@
         console.log('updateButtonVisibility called, isPoolView:', isPoolView, 'selectedImages.length:', selectedImages.length);
         console.log('searchTags.length:', searchTags.length);
 
-        const hasSelections = selectedImages.length > 0;
+        // In pool view, consider both manual and tag selections
+        const hasSelections = isPoolView ?
+            (selectedImages.length > 0 || tagSelectedImages.length > 0) :
+            selectedImages.length > 0;
+
+        console.log('=== BUTTON VISIBILITY DEBUG ===');
+        console.log('isPoolView:', isPoolView);
+        console.log('selectedImages.length:', selectedImages.length);
+        console.log('tagSelectedImages.length:', tagSelectedImages.length);
+        console.log('hasSelections calculated:', hasSelections);
         const showingSelectionPool = isShowingSelectionPool();
 
         // Check if we're actually showing Selection Pool (either explicit pool view OR search results with selections)
@@ -1837,6 +1855,11 @@
             // Show Add to Project button in pool view
             addToProjectBtn.classList.remove('is-hidden');
             addToProjectBtn.disabled = !hasSelections; // Dimmed when no selections
+
+            console.log('Pool view - Add to Project button:');
+            console.log('  - hidden:', addToProjectBtn.classList.contains('is-hidden'));
+            console.log('  - disabled:', addToProjectBtn.disabled);
+            console.log('  - hasSelections:', hasSelections);
 
             console.log('Set buttons for pool view - showing all buttons');
         } else {
@@ -1863,9 +1886,16 @@
             deselectAllBtn.classList.remove('is-hidden');
             deselectAllBtn.disabled = !hasSelections; // Dimmed when no selections
 
-            // Hide Add to Project button in library view
-            addToProjectBtn.classList.add('is-hidden');
-            addToProjectBtn.disabled = true;
+            // Show Add to Project button in library view when there are selections
+            if (hasSelections) {
+                addToProjectBtn.classList.remove('is-hidden');
+                addToProjectBtn.disabled = false;
+                console.log('Library view - Add to Project button SHOWN (has selections)');
+            } else {
+                addToProjectBtn.classList.add('is-hidden');
+                addToProjectBtn.disabled = true;
+                console.log('Library view - Add to Project button HIDDEN (no selections)');
+            }
 
             // Hide Update Tag button in library view
             updateTagBtn.classList.add('is-hidden');
@@ -2065,10 +2095,13 @@
             }
 
             isPoolView = false;
-            console.log('Set isPoolView to false');
+            forceLibraryView = true; // Prevent auto-switching back to pool view
+            console.log('Set isPoolView to false and forceLibraryView to true');
+            console.log('About to update title to Library view');
 
             // Update header back to normal library view
             updateLibraryTitle(false);
+            console.log('Title updated to Library view');
 
             // Don't clear search tags - preserve them
             // Don't clear tagSelectedImages - preserve tag selection status
