@@ -204,6 +204,60 @@ app.get('/images', (req, res) => {
     }
 });
 
+// 3. Update Image Tags
+app.put('/images/:id/tags', (req, res) => {
+    const imageId = parseInt(req.params.id);
+    const { tags } = req.body;
+
+    if (!Array.isArray(tags)) {
+        return res.status(400).send('Tags must be an array');
+    }
+
+    try {
+        // Start transaction
+        const transaction = db.transaction(() => {
+            // Remove all existing tags for this image
+            db.prepare('DELETE FROM image_tags WHERE image_id = ?').run(imageId);
+
+            // Add new tags
+            for (const tagName of tags) {
+                if (!tagName.trim()) continue;
+
+                // Get or create tag
+                let tag = db.prepare('SELECT id FROM tags WHERE name = ?').get(tagName.trim());
+                if (!tag) {
+                    const insertTag = db.prepare('INSERT INTO tags (name) VALUES (?)');
+                    const result = insertTag.run(tagName.trim());
+                    tag = { id: result.lastInsertRowid };
+                }
+
+                // Link tag to image
+                db.prepare('INSERT INTO image_tags (image_id, tag_id) VALUES (?, ?)').run(imageId, tag.id);
+            }
+        });
+
+        transaction();
+
+        // Return updated image with tags
+        const getImageTags = db.prepare(`
+            SELECT t.name FROM tags t
+            JOIN image_tags it ON t.id = it.tag_id
+            WHERE it.image_id = ?
+        `);
+
+        const imageTags = getImageTags.all(imageId);
+        const updatedImage = {
+            id: imageId,
+            tags: imageTags.map(tag => tag.name)
+        };
+
+        res.json(updatedImage);
+    } catch (err) {
+        console.error('Error updating image tags:', err.message);
+        res.status(500).send('Error updating image tags');
+    }
+});
+
 // --- Projects API Endpoints ---
 
 // Get all projects

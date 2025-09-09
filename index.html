@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.44</span>
+          <span class="version">v2.17.47</span>
       </div>
 
       <div class="sidebar__footer">
@@ -351,6 +351,9 @@
                 <div id="original-tags-list" class="tags-list">
                   <!-- Original tags will be populated here -->
                 </div>
+                <div class="tag-actions-section">
+                  <button id="remove-all-tags-btn" class="button remove-all-btn">Remove All Tags</button>
+                </div>
               </div>
               <div class="tag-column">
                 <h3>New Tags</h3>
@@ -358,11 +361,16 @@
                   <!-- New tags will be populated here -->
                 </div>
                 <div class="tag-input-section">
-                  <input type="text" id="new-tag-input" placeholder="Add new tags..." />
+                  <input type="text" id="new-tag-input" placeholder="Add new tags (comma-separated)..." />
                   <button id="add-new-tag-btn" class="button">Add</button>
                 </div>
+                <div id="tag-warning" class="tag-warning is-hidden">Please enter a tag</div>
               </div>
             </div>
+          </div>
+          <div class="modal-footer">
+            <button id="update-tag-cancel" class="button">Cancel</button>
+            <button id="update-tag-save" class="button button-primary">Save</button>
           </div>
         </div>
       </div>
@@ -467,6 +475,10 @@
     const newTagsList = document.getElementById('new-tags-list');
     const newTagInput = document.getElementById('new-tag-input');
     const addNewTagBtn = document.getElementById('add-new-tag-btn');
+    const removeAllTagsBtn = document.getElementById('remove-all-tags-btn');
+    const tagWarning = document.getElementById('tag-warning');
+    const updateTagCancel = document.getElementById('update-tag-cancel');
+    const updateTagSave = document.getElementById('update-tag-save');
 
     // Image preview overlay elements
     const imagePreviewOverlay = document.getElementById('image-preview-overlay');
@@ -483,6 +495,11 @@
     let selectedImages = []; // Store selected image IDs for project creation
     let tagSelectedImages = []; // Store images selected by tags (always show tag icon)
     let imageSelectionSource = {}; // Track how each image was selected: 'manual' or search tag name
+
+    // Update tag modal state
+    let tagsToRemove = new Set(); // Track individual tags marked for removal
+    let removeAllTags = false; // Track if "Remove All Tags" was clicked
+    let tagsToAdd = new Set(); // Track new tags to be added
     let imageSelectionOrder = {}; // Track selection timestamps for ordering
     let tagCreationOrder = {}; // Track when each tag was first created/used
     let projects = []; // Store created projects
@@ -513,6 +530,9 @@
 
         console.log('All input tags in reverse chronological order (latest input first):', allInputTags.map(tag => `${tag}: ${tagCreationOrder[tag]}`));
 
+        // Track which images we've already added to prevent duplicates
+        const addedImageIds = new Set();
+
         // For each tag in reverse chronological order (latest first), add ALL images that have this tag
         allInputTags.forEach(tag => {
             const imagesWithThisTag = images.filter(image => {
@@ -531,9 +551,12 @@
                 `${img.id} (uploaded: ${img.uploadTime})`
             ));
 
-            // Add ALL these images to result (allowing duplicates across tag groups)
+            // Add these images to result (preventing duplicates across tag groups)
             imagesWithThisTag.forEach(image => {
-                result.push(image);
+                if (!addedImageIds.has(image.id)) {
+                    result.push(image);
+                    addedImageIds.add(image.id);
+                }
             });
         });
 
@@ -547,9 +570,12 @@
 
         console.log('Untagged manually selected images:', untaggedImages.map(img => `${img.id} (manual selection)`));
 
-        // Add untagged manually selected images at the end
+        // Add untagged manually selected images at the end (preventing duplicates)
         untaggedImages.forEach(image => {
-            result.push(image);
+            if (!addedImageIds.has(image.id)) {
+                result.push(image);
+                addedImageIds.add(image.id);
+            }
         });
 
         console.log('Final sequence (with untagged manual selections):', result.map(img =>
@@ -1681,6 +1707,9 @@
         const hasSelections = selectedImages.length > 0;
         const showingSelectionPool = isShowingSelectionPool();
 
+        // Check if we're actually showing Selection Pool (either explicit pool view OR search results with selections)
+        const actuallyShowingSelectionPool = isPoolView || showingSelectionPool;
+
         if (isPoolView) {
             // Pool view: Show all buttons (Select All, Deselect All, Back to Library, Add to Project)
             viewPoolBtn.classList.add('is-hidden');
@@ -1697,10 +1726,6 @@
             deselectAllBtn.disabled = !hasSelections; // Dimmed when no selections
 
             addToProjectBtn.disabled = !hasSelections; // Dimmed when no selections
-
-            // Show Update Tag button only in pool view when there are selections
-            updateTagBtn.classList.remove('is-hidden');
-            updateTagBtn.disabled = !hasSelections; // Dimmed when no selections
 
             console.log('Set buttons for pool view - showing all buttons');
         } else {
@@ -1733,6 +1758,15 @@
             updateTagBtn.classList.add('is-hidden');
 
             console.log('Set buttons for library view, showingSelectionPool:', showingSelectionPool);
+        }
+
+        // Update Tag button: Show when actually displaying Selection Pool (regardless of isPoolView flag)
+        if (actuallyShowingSelectionPool && hasSelections) {
+            updateTagBtn.classList.remove('is-hidden');
+            updateTagBtn.disabled = false;
+        } else {
+            updateTagBtn.classList.add('is-hidden');
+            updateTagBtn.disabled = true;
         }
 
         // Log final button states for debugging
@@ -2723,6 +2757,11 @@
     function showUpdateTagModal() {
         console.log('showUpdateTagModal called');
 
+        // Reset state
+        tagsToRemove.clear();
+        removeAllTags = false;
+        tagsToAdd.clear();
+
         // Get all unique tags from selected images
         const originalTags = new Set();
         selectedImages.forEach(imageId => {
@@ -2732,21 +2771,40 @@
             }
         });
 
-        // Populate original tags list
-        originalTagsList.innerHTML = '';
-        Array.from(originalTags).sort().forEach(tag => {
-            const tagElement = document.createElement('div');
-            tagElement.className = 'tag-item';
-            tagElement.textContent = tag;
-            originalTagsList.appendChild(tagElement);
-        });
+        // Populate original tags list with X buttons based on selection count
+        populateOriginalTagsList(Array.from(originalTags).sort());
 
-        // Clear new tags list
+        // Clear new tags list and input
         newTagsList.innerHTML = '';
         newTagInput.value = '';
+        tagWarning.classList.add('is-hidden');
 
         // Show modal
         updateTagModal.classList.remove('is-hidden');
+    }
+
+    function populateOriginalTagsList(tags) {
+        originalTagsList.innerHTML = '';
+        const showRemoveButtons = selectedImages.length === 1; // Only show X for single image
+
+        tags.forEach(tag => {
+            const tagElement = document.createElement('div');
+            tagElement.className = 'tag-item-removable';
+
+            const tagText = document.createElement('span');
+            tagText.textContent = tag;
+            tagElement.appendChild(tagText);
+
+            if (showRemoveButtons) {
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'tag-remove-btn';
+                removeBtn.textContent = '✕';
+                removeBtn.onclick = () => removeIndividualTag(tag);
+                tagElement.appendChild(removeBtn);
+            }
+
+            originalTagsList.appendChild(tagElement);
+        });
     }
 
     function hideUpdateTagModal() {
@@ -2754,6 +2812,145 @@
         originalTagsList.innerHTML = '';
         newTagsList.innerHTML = '';
         newTagInput.value = '';
+        tagWarning.classList.add('is-hidden');
+
+        // Reset state
+        tagsToRemove.clear();
+        removeAllTags = false;
+        tagsToAdd.clear();
+    }
+
+    function removeIndividualTag(tag) {
+        console.log('Marking tag for removal:', tag);
+        tagsToRemove.add(tag);
+
+        // Visual feedback - dim the tag
+        const tagElements = originalTagsList.querySelectorAll('.tag-item-removable');
+        tagElements.forEach(element => {
+            if (element.querySelector('span').textContent === tag) {
+                element.classList.add('marked-for-removal');
+            }
+        });
+    }
+
+    function removeAllTagsFromSelected() {
+        console.log('Marking all tags for removal');
+        removeAllTags = true;
+
+        // Visual feedback - dim all tags
+        const tagElements = originalTagsList.querySelectorAll('.tag-item-removable');
+        tagElements.forEach(element => {
+            element.classList.add('marked-for-removal');
+        });
+    }
+
+    function addNewTags() {
+        const inputValue = newTagInput.value.trim();
+
+        if (!inputValue) {
+            tagWarning.classList.remove('is-hidden');
+            setTimeout(() => {
+                tagWarning.classList.add('is-hidden');
+            }, 3000);
+            return;
+        }
+
+        tagWarning.classList.add('is-hidden');
+
+        // Split by comma and clean up tags
+        const newTags = inputValue.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+
+        newTags.forEach(tag => {
+            if (!tagsToAdd.has(tag)) {
+                tagsToAdd.add(tag);
+
+                // Add to visual list
+                const tagElement = document.createElement('div');
+                tagElement.className = 'tag-item';
+                tagElement.textContent = tag;
+                newTagsList.appendChild(tagElement);
+            }
+        });
+
+        // Clear input
+        newTagInput.value = '';
+    }
+
+    async function saveTagUpdates() {
+        console.log('Saving tag updates...');
+        console.log('Selected images:', selectedImages);
+        console.log('Tags to remove:', Array.from(tagsToRemove));
+        console.log('Remove all tags:', removeAllTags);
+        console.log('Tags to add:', Array.from(tagsToAdd));
+
+        // Check if there are any changes
+        if (!removeAllTags && tagsToRemove.size === 0 && tagsToAdd.size === 0) {
+            console.log('No changes to save');
+            hideUpdateTagModal();
+            return;
+        }
+
+        try {
+            // Process each selected image
+            for (const imageId of selectedImages) {
+                const image = libraryImages.find(img => img.id === imageId);
+                if (!image) continue;
+
+                let currentTags = image.tags ? [...image.tags] : [];
+
+                // Handle tag removal
+                if (removeAllTags) {
+                    currentTags = [];
+                } else {
+                    // Remove individual tags
+                    tagsToRemove.forEach(tagToRemove => {
+                        currentTags = currentTags.filter(tag => tag !== tagToRemove);
+                    });
+                }
+
+                // Add new tags
+                tagsToAdd.forEach(tagToAdd => {
+                    if (!currentTags.includes(tagToAdd)) {
+                        currentTags.push(tagToAdd);
+                    }
+                });
+
+                // Update the image in backend
+                await updateImageTags(imageId, currentTags);
+
+                // Update local image object
+                image.tags = currentTags;
+            }
+
+            console.log('Tag updates completed successfully');
+
+            // Refresh the library display
+            await loadLibraryImages();
+            displayLibraryImages();
+
+            // Close modal
+            hideUpdateTagModal();
+
+        } catch (error) {
+            console.error('Error saving tag updates:', error);
+            alert('Failed to update tags. Please try again.');
+        }
+    }
+
+    async function updateImageTags(imageId, tags) {
+        const response = await fetch(`${API_URL}/images/${imageId}/tags`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ tags: tags })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to update tags for image ${imageId}`);
+        }
+
+        return response.json();
     }
 
     async function shareProject() {
@@ -3219,6 +3416,18 @@
 
     // Update tag modal event listeners
     updateTagClose.addEventListener('click', hideUpdateTagModal);
+    updateTagCancel.addEventListener('click', hideUpdateTagModal);
+    updateTagSave.addEventListener('click', saveTagUpdates);
+    addNewTagBtn.addEventListener('click', addNewTags);
+    removeAllTagsBtn.addEventListener('click', removeAllTagsFromSelected);
+
+    // Add tag input enter key support
+    newTagInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addNewTags();
+        }
+    });
 
     // Share email input enter key (only Enter, no ESC)
     shareEmailInput.addEventListener('keydown', (e) => {
