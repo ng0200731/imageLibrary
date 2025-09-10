@@ -498,6 +498,19 @@ app.post('/projects/:id/share', async (req, res) => {
         // Send email
         const emailSent = await sendProjectEmail(projectData, recipient_email, message);
 
+        // Log email sending attempt to database
+        try {
+            const logEmailStmt = db.prepare(`
+                INSERT INTO email_history (project_id, recipient_email, sender_message, success)
+                VALUES (?, ?, ?, ?)
+            `);
+            logEmailStmt.run(projectId, recipient_email, message || '', emailSent ? 1 : 0);
+            console.log(`Email history logged: Project ${projectId} to ${recipient_email}, success: ${emailSent}`);
+        } catch (logError) {
+            console.error('Failed to log email history:', logError);
+            // Don't fail the request if logging fails
+        }
+
         if (emailSent) {
             res.status(200).json({
                 success: true,
@@ -515,6 +528,25 @@ app.post('/projects/:id/share', async (req, res) => {
             success: false,
             message: 'Error sharing project: ' + err.message
         });
+    }
+});
+
+// 8. Get Email History for a Project
+app.get('/projects/:id/email-history', (req, res) => {
+    const projectId = req.params.id;
+
+    try {
+        const emailHistory = db.prepare(`
+            SELECT recipient_email, sender_message, sent_at, success
+            FROM email_history
+            WHERE project_id = ?
+            ORDER BY sent_at DESC
+        `).all(projectId);
+
+        res.json(emailHistory);
+    } catch (err) {
+        console.error('Error fetching email history:', err.message);
+        res.status(500).send('Error fetching email history');
     }
 });
 

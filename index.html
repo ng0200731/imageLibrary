@@ -198,7 +198,15 @@
       <!-- Project Page -->
       <div id="page-project" class="page is-hidden">
         <header class="content__header">
-          <h1 class="title">Projects</h1>
+          <div class="project-header-row">
+            <h1 class="title">Projects</h1>
+            <div class="project-view-toggle">
+              <button id="project-view-toggle-btn" class="button is-small">
+                <span id="toggle-icon">📋</span>
+                <span id="toggle-text">Detailed View</span>
+              </button>
+            </div>
+          </div>
         </header>
         <section class="panel">
           <!-- Project Search Bar -->
@@ -543,6 +551,11 @@
     const projectSearchInput = document.getElementById('project-search-input');
     const projectFilterBtn = document.getElementById('project-filter-btn');
 
+    // Project view toggle elements
+    const projectViewToggleBtn = document.getElementById('project-view-toggle-btn');
+    const toggleIcon = document.getElementById('toggle-icon');
+    const toggleText = document.getElementById('toggle-text');
+
     // Project detail overlay elements
     const projectDetailModal = document.getElementById('project-detail-modal');
     const closeProjectDetailBtn = document.getElementById('close-project-detail');
@@ -612,6 +625,7 @@
     let isPoolView = false; // Track if we're viewing selection pool
     let forceLibraryView = false; // Flag to prevent auto-switching to pool view
     let lastCreatedProject = null; // Store the last created project for navigation
+    let isDetailedProjectView = false; // Track if we're in detailed project view mode
 
     // Selection Pool preview navigation
     let currentPreviewImages = []; // Array of images for navigation
@@ -2911,6 +2925,111 @@
         }
     }
 
+    function toggleProjectView() {
+        isDetailedProjectView = !isDetailedProjectView;
+
+        // Update toggle button appearance
+        if (isDetailedProjectView) {
+            projectViewToggleBtn.classList.add('detailed-mode');
+            toggleIcon.textContent = '📊';
+            toggleText.textContent = 'Present View';
+        } else {
+            projectViewToggleBtn.classList.remove('detailed-mode');
+            toggleIcon.textContent = '📋';
+            toggleText.textContent = 'Detailed View';
+        }
+
+        // Update project list classes
+        if (isDetailedProjectView) {
+            projectList.classList.add('detailed-view');
+        } else {
+            projectList.classList.remove('detailed-view');
+        }
+
+        // Refresh the project display
+        displayProjects();
+    }
+
+    async function toggleEmailHistory(projectId, toggleButton, emailList) {
+        if (emailList.classList.contains('expanded')) {
+            // Collapse
+            emailList.classList.remove('expanded');
+            toggleButton.textContent = 'Show All';
+        } else {
+            // Expand and load email history
+            try {
+                const response = await fetch(`${API_URL}/projects/${projectId}/email-history`);
+                if (response.ok) {
+                    const emailHistory = await response.json();
+
+                    emailList.innerHTML = '';
+
+                    if (emailHistory.length === 0) {
+                        emailList.innerHTML = '<div class="email-history-item">No emails sent yet</div>';
+                    } else {
+                        emailHistory.forEach(email => {
+                            const emailItem = document.createElement('div');
+                            emailItem.className = 'email-history-item';
+
+                            const date = new Date(email.sent_at);
+                            const statusClass = email.success ? 'success' : 'failed';
+                            const statusText = email.success ? 'Sent' : 'Failed';
+
+                            emailItem.innerHTML = `
+                                <div class="email-recipient">${email.recipient_email}</div>
+                                <div class="email-date">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                                <span class="email-status ${statusClass}">${statusText}</span>
+                            `;
+
+                            emailList.appendChild(emailItem);
+                        });
+                    }
+
+                    emailList.classList.add('expanded');
+                    toggleButton.textContent = 'Hide All';
+                } else {
+                    console.error('Failed to load email history');
+                    emailList.innerHTML = '<div class="email-history-item">Failed to load email history</div>';
+                    emailList.classList.add('expanded');
+                    toggleButton.textContent = 'Hide All';
+                }
+            } catch (error) {
+                console.error('Error loading email history:', error);
+                emailList.innerHTML = '<div class="email-history-item">Error loading email history</div>';
+                emailList.classList.add('expanded');
+                toggleButton.textContent = 'Hide All';
+            }
+        }
+    }
+
+    async function loadLastEmailInfo(projectId, emailSection) {
+        try {
+            const response = await fetch(`${API_URL}/projects/${projectId}/email-history`);
+            if (response.ok) {
+                const emailHistory = await response.json();
+
+                if (emailHistory.length > 0) {
+                    const lastEmail = emailHistory[0]; // Most recent email
+                    const lastEmailRow = document.createElement('div');
+                    lastEmailRow.className = 'project-detail-row';
+
+                    const date = new Date(lastEmail.sent_at);
+                    const statusText = lastEmail.success ? '✅' : '❌';
+
+                    lastEmailRow.innerHTML = `<strong>📧 Last email:</strong> ${lastEmail.recipient_email} (${date.toLocaleDateString()}) ${statusText}`;
+                    emailSection.appendChild(lastEmailRow);
+                } else {
+                    const noEmailRow = document.createElement('div');
+                    noEmailRow.className = 'project-detail-row';
+                    noEmailRow.innerHTML = '<strong>📧 Last email:</strong> No emails sent yet';
+                    emailSection.appendChild(noEmailRow);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading last email info:', error);
+        }
+    }
+
     async function displayProjects() {
         if (projects.length === 0) {
             projectList.innerHTML = '<p class="text">No projects created yet. Select images in the Image Library and click "Add to Project" to create your first project.</p>';
@@ -2927,7 +3046,7 @@
 
         for (const project of sortedProjects) {
             const projectCard = document.createElement('div');
-            projectCard.className = 'project-card';
+            projectCard.className = isDetailedProjectView ? 'project-card detailed-view' : 'project-card';
 
             // Project card header with title and metadata
             const cardHeader = document.createElement('div');
@@ -2940,22 +3059,75 @@
             projectTitle.className = 'project-title';
             projectTitle.textContent = project.name;
 
-            const projectMeta = document.createElement('div');
-            projectMeta.className = 'project-meta';
+            if (isDetailedProjectView) {
+                // Detailed view: Show comprehensive information
+                const detailedInfo = document.createElement('div');
+                detailedInfo.className = 'project-detailed-info';
 
-            const imageCount = document.createElement('span');
-            imageCount.className = 'project-image-count';
-            imageCount.textContent = `${project.image_ids.length} images`;
+                // Creation date
+                const date = new Date(project.created_at);
+                const dateRow = document.createElement('div');
+                dateRow.className = 'project-detail-row';
+                dateRow.innerHTML = `<strong>📅 Created:</strong> ${date.toLocaleDateString()} at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                detailedInfo.appendChild(dateRow);
 
-            const createdDate = document.createElement('span');
-            createdDate.className = 'project-created-date';
-            const date = new Date(project.created_at);
-            createdDate.textContent = `Created ${date.toLocaleDateString()} at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                // Image count
+                const countRow = document.createElement('div');
+                countRow.className = 'project-detail-row';
+                countRow.innerHTML = `<strong>📊 Images:</strong> ${project.image_ids.length} images`;
+                detailedInfo.appendChild(countRow);
 
-            projectMeta.appendChild(imageCount);
-            projectMeta.appendChild(createdDate);
-            titleSection.appendChild(projectTitle);
-            titleSection.appendChild(projectMeta);
+                // Email history section
+                const emailSection = document.createElement('div');
+                emailSection.className = 'email-history-section';
+
+                // Load and show last email info immediately
+                loadLastEmailInfo(project.id, emailSection);
+
+                const emailHeader = document.createElement('div');
+                emailHeader.className = 'email-history-header';
+                emailHeader.innerHTML = '<strong>📧 Email History:</strong>';
+
+                const emailToggle = document.createElement('button');
+                emailToggle.className = 'email-history-toggle';
+                emailToggle.textContent = 'Show All';
+                emailToggle.dataset.projectId = project.id;
+
+                const emailList = document.createElement('div');
+                emailList.className = 'email-history-list';
+                emailList.id = `email-history-${project.id}`;
+
+                emailToggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleEmailHistory(project.id, emailToggle, emailList);
+                });
+
+                emailHeader.appendChild(emailToggle);
+                emailSection.appendChild(emailHeader);
+                emailSection.appendChild(emailList);
+                detailedInfo.appendChild(emailSection);
+
+                titleSection.appendChild(projectTitle);
+                titleSection.appendChild(detailedInfo);
+            } else {
+                // Present view: Show basic metadata
+                const projectMeta = document.createElement('div');
+                projectMeta.className = 'project-meta';
+
+                const imageCount = document.createElement('span');
+                imageCount.className = 'project-image-count';
+                imageCount.textContent = `${project.image_ids.length} images`;
+
+                const createdDate = document.createElement('span');
+                createdDate.className = 'project-created-date';
+                const date = new Date(project.created_at);
+                createdDate.textContent = `Created ${date.toLocaleDateString()} at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+
+                projectMeta.appendChild(imageCount);
+                projectMeta.appendChild(createdDate);
+                titleSection.appendChild(projectTitle);
+                titleSection.appendChild(projectMeta);
+            }
 
             const actionSection = document.createElement('div');
             actionSection.className = 'project-actions';
@@ -2983,34 +3155,43 @@
             cardHeader.appendChild(titleSection);
             cardHeader.appendChild(actionSection);
 
-            // Project images preview (first few images)
-            const projectPreview = document.createElement('div');
-            projectPreview.className = 'project-preview';
+            // Only show image preview in present view
+            if (!isDetailedProjectView) {
+                // Project images preview (first few images)
+                const projectPreview = document.createElement('div');
+                projectPreview.className = 'project-preview';
 
-            // Get image data for this project
-            try {
-                const response = await fetch(`${API_URL}/images`);
-                const allImages = await response.json();
-                const projectImageData = allImages.filter(img => project.image_ids.includes(img.id));
+                // Get image data for this project
+                try {
+                    const response = await fetch(`${API_URL}/images`);
+                    const allImages = await response.json();
+                    const projectImageData = allImages.filter(img => project.image_ids.includes(img.id));
 
-                // Show first 6 images as preview
-                const previewImages = projectImageData.slice(0, 6);
-                previewImages.forEach(image => {
-                    const previewImg = document.createElement('img');
-                    previewImg.className = 'project-preview-image';
-                    previewImg.src = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
-                    projectPreview.appendChild(previewImg);
-                });
+                    // Show first 6 images as preview
+                    const previewImages = projectImageData.slice(0, 6);
+                    previewImages.forEach(image => {
+                        const previewImg = document.createElement('img');
+                        previewImg.className = 'project-preview-image';
+                        previewImg.src = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
+                        projectPreview.appendChild(previewImg);
+                    });
 
-                // Add "more" indicator if there are more images
-                if (projectImageData.length > 6) {
-                    const moreIndicator = document.createElement('div');
-                    moreIndicator.className = 'project-more-indicator';
-                    moreIndicator.textContent = `+${projectImageData.length - 6} more`;
-                    projectPreview.appendChild(moreIndicator);
+                    // Add "more" indicator if there are more images
+                    if (projectImageData.length > 6) {
+                        const moreIndicator = document.createElement('div');
+                        moreIndicator.className = 'project-more-indicator';
+                        moreIndicator.textContent = `+${projectImageData.length - 6} more`;
+                        projectPreview.appendChild(moreIndicator);
+                    }
+                } catch (error) {
+                    console.error('Error loading project images:', error);
                 }
-            } catch (error) {
-                console.error('Error loading project images:', error);
+
+                projectCard.appendChild(cardHeader);
+                projectCard.appendChild(projectPreview);
+            } else {
+                // Detailed view: Only show header
+                projectCard.appendChild(cardHeader);
             }
 
             // Add click handler to open project detail modal
@@ -3021,8 +3202,6 @@
             // Make project card look clickable
             projectCard.style.cursor = 'pointer';
 
-            projectCard.appendChild(cardHeader);
-            projectCard.appendChild(projectPreview);
             projectList.appendChild(projectCard);
         }
     }
@@ -3838,6 +4017,9 @@
         // Future: Add advanced filtering options
         console.log('Filter button clicked - future feature');
     });
+
+    // Project view toggle event listener
+    projectViewToggleBtn.addEventListener('click', toggleProjectView);
 
     // Image preview overlay event listeners
     previewOverlayClose.addEventListener('click', hideImagePreviewOverlay);

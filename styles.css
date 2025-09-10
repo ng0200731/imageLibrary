@@ -1107,7 +1107,130 @@ body {
   height: 40px;
 }
 
+/* Detailed Project View Styles */
+.project-list.detailed-view {
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
 
+.project-card.detailed-view {
+  display: flex;
+  flex-direction: column;
+  min-height: auto;
+  max-height: none;
+}
+
+.project-card.detailed-view .project-card-header {
+  padding: 16px;
+  background: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.project-card.detailed-view .project-title-section {
+  margin-bottom: 12px;
+}
+
+.project-card.detailed-view .project-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.project-detailed-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.project-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-detail-row strong {
+  color: #333;
+  min-width: 120px;
+}
+
+.email-history-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #dee2e6;
+}
+
+.email-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.email-history-toggle {
+  background: none;
+  border: none;
+  color: #007bff;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.email-history-toggle:hover {
+  background: #f8f9fa;
+}
+
+.email-history-list {
+  display: none;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.email-history-list.expanded {
+  display: block;
+}
+
+.email-history-item {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f3f4;
+  font-size: 12px;
+}
+
+.email-history-item:last-child {
+  border-bottom: none;
+}
+
+.email-history-item .email-recipient {
+  font-weight: 600;
+  color: #333;
+}
+
+.email-history-item .email-date {
+  color: #666;
+  font-size: 11px;
+}
+
+.email-history-item .email-status {
+  float: right;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: white;
+}
+
+.email-history-item .email-status.success {
+  background: #28a745;
+}
+
+.email-history-item .email-status.failed {
+  background: #dc3545;
+}
 
 .search-options {
   margin-top: 8px;
@@ -1240,6 +1363,45 @@ body {
 .modal-buttons .button.is-primary:focus {
   background: #fff;
   color: #000;
+}
+
+/* Project Header Row */
+.project-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.project-view-toggle {
+  display: flex;
+  align-items: center;
+}
+
+#project-view-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+#project-view-toggle-btn:hover {
+  background: #0056b3;
+}
+
+#project-view-toggle-btn.detailed-mode {
+  background: #28a745;
+}
+
+#project-view-toggle-btn.detailed-mode:hover {
+  background: #1e7e34;
 }
 
 /* Project Search Bar */
