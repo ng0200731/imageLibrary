@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Image Library — Minimal Shell v2.18.2</title>
-  <link rel="stylesheet" href="styles.css?v=2.18.2&bust=20250910080000" />
+  <title>Image Library — Minimal Shell v2.19.0</title>
+  <link rel="stylesheet" href="styles.css?v=2.19.0&bust=20250910090000" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.18.2</span>
+          <span class="version">v2.19.0</span>
       </div>
 
       <div class="sidebar__footer">
@@ -64,12 +64,15 @@
         <section class="panel">
           <div class="search-bar">
             <div class="search-input-row">
-              <input type="text" id="library-search-input" placeholder="Enter tags separated by commas..."
-                     autocomplete="off"
-                     autocorrect="off"
-                     autocapitalize="off"
-                     spellcheck="false"
-                     data-form-type="other">
+              <div class="autocomplete-container">
+                <input type="text" id="library-search-input" placeholder="Enter tags separated by commas..."
+                       autocomplete="off"
+                       autocorrect="off"
+                       autocapitalize="off"
+                       spellcheck="false"
+                       data-form-type="other">
+                <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
+              </div>
               <button id="clear-all-tags" class="button clear-tags-btn" type="button">Clear All</button>
             </div>
             <div id="library-search-chips" class="chips search-chips"></div>
@@ -519,6 +522,7 @@
     const librarySearchInput = document.getElementById('library-search-input');
     const libraryGrid = document.getElementById('library-grid');
     const librarySearchChips = document.getElementById('library-search-chips');
+    const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
 
     // Header title element for dynamic updates
     const libraryTitle = document.querySelector('#page-library .title');
@@ -626,6 +630,9 @@
     let forceLibraryView = false; // Flag to prevent auto-switching to pool view
     let lastCreatedProject = null; // Store the last created project for navigation
     let isDetailedProjectView = false; // Track if we're in detailed project view mode
+    let autocompleteVisible = false; // Track if autocomplete dropdown is visible
+    let autocompleteHighlightIndex = -1; // Track highlighted item in autocomplete
+    let autocompleteItems = []; // Store current autocomplete suggestions
 
     // Selection Pool preview navigation
     let currentPreviewImages = []; // Array of images for navigation
@@ -3309,6 +3316,112 @@
         console.log('=== UPDATE PROJECT EMAIL HISTORY END ===');
     }
 
+    // Autocomplete Functions
+    async function showAutocomplete(query) {
+        if (query.length < 2) {
+            hideAutocomplete();
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/tags?q=${encodeURIComponent(query)}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch tags');
+            }
+
+            const tags = await response.json();
+            autocompleteItems = tags.slice(0, 10); // Limit to 10 suggestions
+
+            if (autocompleteItems.length === 0) {
+                hideAutocomplete();
+                return;
+            }
+
+            renderAutocomplete();
+            autocompleteDropdown.classList.add('show');
+            autocompleteVisible = true;
+            autocompleteHighlightIndex = -1;
+
+        } catch (error) {
+            console.error('Error fetching autocomplete suggestions:', error);
+            hideAutocomplete();
+        }
+    }
+
+    function renderAutocomplete() {
+        autocompleteDropdown.innerHTML = '';
+
+        autocompleteItems.forEach((tag, index) => {
+            const item = document.createElement('div');
+            item.className = 'autocomplete-item';
+            item.dataset.index = index;
+
+            item.innerHTML = `
+                <span class="autocomplete-item-name">${tag.name}</span>
+                <span class="autocomplete-item-count">${tag.usage_count}</span>
+            `;
+
+            item.addEventListener('click', () => {
+                selectAutocompleteItem(tag.name);
+            });
+
+            autocompleteDropdown.appendChild(item);
+        });
+    }
+
+    function hideAutocomplete() {
+        autocompleteDropdown.classList.remove('show');
+        autocompleteVisible = false;
+        autocompleteHighlightIndex = -1;
+        autocompleteItems = [];
+    }
+
+    function selectAutocompleteItem(tagName) {
+        const currentValue = librarySearchInput.value;
+        const lastCommaIndex = currentValue.lastIndexOf(',');
+
+        let newValue;
+        if (lastCommaIndex === -1) {
+            // No comma, replace entire value
+            newValue = tagName;
+        } else {
+            // Replace text after last comma
+            newValue = currentValue.substring(0, lastCommaIndex + 1) + ' ' + tagName;
+        }
+
+        librarySearchInput.value = newValue;
+        hideAutocomplete();
+        librarySearchInput.focus();
+    }
+
+    function highlightAutocompleteItem(direction) {
+        if (!autocompleteVisible || autocompleteItems.length === 0) return;
+
+        // Remove previous highlight
+        const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+        items.forEach(item => item.classList.remove('highlighted'));
+
+        // Update highlight index
+        if (direction === 'down') {
+            autocompleteHighlightIndex = Math.min(autocompleteHighlightIndex + 1, autocompleteItems.length - 1);
+        } else if (direction === 'up') {
+            autocompleteHighlightIndex = Math.max(autocompleteHighlightIndex - 1, -1);
+        }
+
+        // Apply new highlight
+        if (autocompleteHighlightIndex >= 0) {
+            items[autocompleteHighlightIndex].classList.add('highlighted');
+        }
+    }
+
+    function selectHighlightedItem() {
+        if (autocompleteHighlightIndex >= 0 && autocompleteHighlightIndex < autocompleteItems.length) {
+            selectAutocompleteItem(autocompleteItems[autocompleteHighlightIndex].name);
+            return true;
+        }
+        return false;
+    }
+
     // Share Project Functions
     function showShareProjectModal(project) {
         shareProjectName.textContent = project.name;
@@ -3952,14 +4065,60 @@
 
 
 
-    // Handle tag input with Enter, Tab, or comma
+    // Handle tag input with Enter, Tab, comma, and autocomplete navigation
     librarySearchInput.addEventListener('keydown', async (e) => {
+        if (autocompleteVisible) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                highlightAutocompleteItem('down');
+                return;
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                highlightAutocompleteItem('up');
+                return;
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                hideAutocomplete();
+                return;
+            } else if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                if (selectHighlightedItem()) {
+                    return; // Item was selected from autocomplete
+                }
+                // Fall through to normal tag commit if no item highlighted
+            }
+        }
+
         if (e.key === 'Enter' || e.key === 'Tab' || e.key === ',') {
             e.preventDefault();
             await handleSearchTagCommit();
         }
         // Note: Backspace functionality for removing tag chips has been disabled
         // Users must use the "x" button on individual chips or "Clear All" button
+    });
+
+    // Handle autocomplete on input
+    librarySearchInput.addEventListener('input', async (e) => {
+        const value = e.target.value;
+        const lastCommaIndex = value.lastIndexOf(',');
+
+        // Get the current word being typed (after last comma or from beginning)
+        const currentWord = lastCommaIndex === -1
+            ? value.trim()
+            : value.substring(lastCommaIndex + 1).trim();
+
+        if (currentWord.length >= 2) {
+            await showAutocomplete(currentWord);
+        } else {
+            hideAutocomplete();
+        }
+    });
+
+    // Hide autocomplete when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.autocomplete-container')) {
+            hideAutocomplete();
+        }
     });
 
     // Also handle input changes for real-time search

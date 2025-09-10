@@ -237,7 +237,41 @@ app.get('/images', (req, res) => {
     }
 });
 
-// 3. Update Image Tags
+// 3. Get All Tags (for autocomplete)
+app.get('/tags', (req, res) => {
+    try {
+        const query = req.query.q ? req.query.q.toLowerCase() : '';
+        let tags;
+
+        if (query) {
+            // Search for tags that contain the query string
+            tags = db.prepare(`
+                SELECT name, COUNT(it.image_id) as usage_count
+                FROM tags t
+                LEFT JOIN image_tags it ON t.id = it.tag_id
+                WHERE LOWER(t.name) LIKE ?
+                GROUP BY t.id, t.name
+                ORDER BY usage_count DESC, t.name ASC
+            `).all(`%${query}%`);
+        } else {
+            // Get all tags with usage count
+            tags = db.prepare(`
+                SELECT name, COUNT(it.image_id) as usage_count
+                FROM tags t
+                LEFT JOIN image_tags it ON t.id = it.tag_id
+                GROUP BY t.id, t.name
+                ORDER BY usage_count DESC, t.name ASC
+            `).all();
+        }
+
+        res.json(tags);
+    } catch (err) {
+        console.error('Error fetching tags:', err.message);
+        res.status(500).send('Error fetching tags');
+    }
+});
+
+// 4. Update Image Tags
 app.put('/images/:id/tags', (req, res) => {
     const imageId = parseInt(req.params.id);
     const { tags } = req.body;
