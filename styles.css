@@ -681,7 +681,7 @@ body {
 /* Autocomplete dropdown */
 .autocomplete-container {
   position: relative;
-  flex: 1;
+  flex: 2;
 }
 
 .autocomplete-dropdown {
