@@ -360,6 +360,76 @@ app.delete('/projects/:id', (req, res) => {
     }
 });
 
+// Delete an image
+app.delete('/images/:id', (req, res) => {
+    try {
+        const imageId = parseInt(req.params.id);
+
+        if (isNaN(imageId)) {
+            return res.status(400).send('Invalid image ID');
+        }
+
+        // Get image filepath before deletion for file cleanup
+        const imageStmt = db.prepare('SELECT filepath FROM images WHERE id = ?');
+        const image = imageStmt.get(imageId);
+
+        if (!image) {
+            return res.status(404).send('Image not found');
+        }
+
+        // Start transaction to delete image and related data
+        const transaction = db.transaction(() => {
+            // Delete from image_tags table (foreign key constraint)
+            db.prepare('DELETE FROM image_tags WHERE image_id = ?').run(imageId);
+
+            // Remove image from projects (update image_ids field)
+            const projects = db.prepare('SELECT id, image_ids FROM projects').all();
+            projects.forEach(project => {
+                const imageIds = project.image_ids.split(',').map(id => parseInt(id.trim()));
+                if (imageIds.includes(imageId)) {
+                    const updatedImageIds = imageIds.filter(id => id !== imageId);
+                    const updatedImageIdsStr = updatedImageIds.join(',');
+                    db.prepare('UPDATE projects SET image_ids = ? WHERE id = ?').run(updatedImageIdsStr, project.id);
+                    console.log(`Removed image ${imageId} from project ${project.id}`);
+                }
+            });
+
+            // Delete from images table
+            const result = db.prepare('DELETE FROM images WHERE id = ?').run(imageId);
+
+            if (result.changes === 0) {
+                throw new Error('Image not found');
+            }
+        });
+
+        transaction();
+
+        // Delete the physical file
+        const fs = require('fs');
+        const path = require('path');
+
+        try {
+            const fullPath = path.resolve(image.filepath);
+            if (fs.existsSync(fullPath)) {
+                fs.unlinkSync(fullPath);
+                console.log(`Deleted file: ${fullPath}`);
+            } else {
+                console.warn(`File not found for deletion: ${fullPath}`);
+            }
+        } catch (fileErr) {
+            console.error(`Error deleting file ${image.filepath}:`, fileErr.message);
+            // Don't fail the request if file deletion fails
+        }
+
+        console.log(`Successfully deleted image ${imageId} and file ${image.filepath}`);
+        res.status(200).json({ message: 'Image deleted successfully', imageId: imageId });
+
+    } catch (err) {
+        console.error('Error deleting image:', err.message);
+        res.status(500).send('Error deleting image: ' + err.message);
+    }
+});
+
 // 7. Share Project via Email
 app.post('/projects/:id/share', async (req, res) => {
     const projectId = req.params.id;

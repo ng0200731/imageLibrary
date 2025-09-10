@@ -74,6 +74,7 @@
             </div>
             <div id="library-search-chips" class="chips search-chips"></div>
             <button id="update-tag-btn" class="button update-tag-btn is-hidden" type="button">Update Tag</button>
+            <button id="delete-image-btn" class="button delete-image-btn is-hidden" type="button">Delete Image</button>
 
           </div>
           <div id="library-grid" class="preview-grid"></div>
@@ -407,6 +408,24 @@
         </div>
       </div>
 
+      <!-- Delete Image Confirmation Modal -->
+      <div id="delete-image-modal" class="modal-overlay is-hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Delete Images</h2>
+            <button id="delete-image-close" class="modal-close-btn">✕</button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to delete <span id="delete-count">0</span> selected image(s)?</p>
+            <p class="warning-text">This action cannot be undone. Images will be permanently removed from the database and file system.</p>
+          </div>
+          <div class="modal-footer">
+            <button id="cancel-delete-btn" class="button">Cancel</button>
+            <button id="confirm-delete-btn" class="button button--danger">Delete Images</button>
+          </div>
+        </div>
+      </div>
+
   <script>
     // --- Constants & State ---
     const API_URL = 'http://localhost:3000';
@@ -493,6 +512,7 @@
     const selectAllBtn = document.getElementById('select-all-btn');
     const deselectAllBtn = document.getElementById('deselect-all-btn');
     const updateTagBtn = document.getElementById('update-tag-btn');
+    const deleteImageBtn = document.getElementById('delete-image-btn');
     const viewPoolBtn = document.getElementById('view-pool-btn');
     const backToLibraryBtn = document.getElementById('back-to-library-btn');
     const addToProjectBtn = document.getElementById('add-to-project-btn');
@@ -543,6 +563,13 @@
     const tagWarning = document.getElementById('tag-warning');
     const updateTagCancel = document.getElementById('update-tag-cancel');
     const updateTagSave = document.getElementById('update-tag-save');
+
+    // Delete image modal elements
+    const deleteImageModal = document.getElementById('delete-image-modal');
+    const deleteImageClose = document.getElementById('delete-image-close');
+    const deleteCount = document.getElementById('delete-count');
+    const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+    const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
     const tagUpdateSuccessModal = document.getElementById('tag-update-success-modal');
     const tagUpdateContinueBtn = document.getElementById('tag-update-continue-btn');
     const tagRemovalNotificationModal = document.getElementById('tag-removal-notification-modal');
@@ -2002,6 +2029,15 @@
             updateTagBtn.disabled = true;
         }
 
+        // Delete Image button: Show when actually displaying Selection Pool and has selections
+        if (actuallyShowingSelectionPool && hasSelections) {
+            deleteImageBtn.classList.remove('is-hidden');
+            deleteImageBtn.disabled = false;
+        } else {
+            deleteImageBtn.classList.add('is-hidden');
+            deleteImageBtn.disabled = true;
+        }
+
         // Log final button states for debugging
         console.log('Final button states:');
         console.log('viewPoolBtn - hidden:', viewPoolBtn.classList.contains('is-hidden'), 'disabled:', viewPoolBtn.disabled);
@@ -3294,6 +3330,68 @@
         }
     }
 
+    // Delete Image Functions
+    function showDeleteImageModal() {
+        const totalSelected = selectedImages.length + tagSelectedImages.length;
+        deleteCount.textContent = totalSelected;
+        deleteImageModal.classList.remove('is-hidden');
+    }
+
+    function hideDeleteImageModal() {
+        deleteImageModal.classList.add('is-hidden');
+    }
+
+    async function deleteSelectedImages() {
+        try {
+            // Get all selected image IDs (both manual and tag-selected)
+            const allSelectedIds = [...new Set([...selectedImages, ...tagSelectedImages])];
+
+            if (allSelectedIds.length === 0) {
+                alert('No images selected for deletion.');
+                return;
+            }
+
+            console.log(`Deleting ${allSelectedIds.length} images:`, allSelectedIds);
+
+            // Delete each image
+            for (const imageId of allSelectedIds) {
+                const response = await fetch(`${API_URL}/images/${imageId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`Failed to delete image ${imageId}:`, errorText);
+                    throw new Error(`Failed to delete image ${imageId}: ${response.status} ${response.statusText}`);
+                }
+
+                console.log(`Successfully deleted image ${imageId}`);
+            }
+
+            // Clear all selections
+            selectedImages = [];
+            tagSelectedImages = [];
+            imageSelectionSource = {};
+            imageSelectionOrder = {};
+
+            // Hide delete modal
+            hideDeleteImageModal();
+
+            // Return to library view with zero selections
+            showingSelectionPool = false;
+            isPoolView = false;
+
+            // Refresh the library display
+            await displayLibraryImages();
+
+            console.log(`Successfully deleted ${allSelectedIds.length} images and returned to library`);
+
+        } catch (error) {
+            console.error('Error deleting images:', error);
+            alert('Failed to delete some images. Please try again.');
+        }
+    }
+
     async function shareProject() {
         const email = shareEmailInput.value.trim();
         const message = shareMessageInput.value.trim();
@@ -3673,6 +3771,10 @@
         console.log('Update Tag button clicked - showing modal');
         showUpdateTagModal();
     });
+    deleteImageBtn.addEventListener('click', () => {
+        console.log('Delete Image button clicked - showing modal');
+        showDeleteImageModal();
+    });
     viewPoolBtn.addEventListener('click', handleViewPoolClick);
     backToLibraryBtn.addEventListener('click', backToLibrary);
     addToProjectBtn.addEventListener('click', showProjectNameModal);
@@ -3775,6 +3877,11 @@
     removeAllTagsBtn.addEventListener('click', removeAllTagsFromSelected);
     tagUpdateContinueBtn.addEventListener('click', hideTagUpdateSuccess);
     tagRemovalContinueBtn.addEventListener('click', hideTagRemovalNotification);
+
+    // Delete image modal event listeners
+    deleteImageClose.addEventListener('click', hideDeleteImageModal);
+    cancelDeleteBtn.addEventListener('click', hideDeleteImageModal);
+    confirmDeleteBtn.addEventListener('click', deleteSelectedImages);
 
     // Add tag input enter key support
     newTagInput.addEventListener('keydown', (e) => {
