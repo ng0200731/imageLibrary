@@ -3007,13 +3007,21 @@
     }
 
     async function loadLastEmailInfo(projectId, emailSection) {
+        console.log('=== LOAD LAST EMAIL INFO START ===');
+        console.log('Loading last email info for project:', projectId);
+
         try {
             const response = await fetch(`${API_URL}/projects/${projectId}/email-history`);
+            console.log('Email history API response status:', response.status);
+
             if (response.ok) {
                 const emailHistory = await response.json();
+                console.log('Email history data:', emailHistory);
 
                 if (emailHistory.length > 0) {
                     const lastEmail = emailHistory[0]; // Most recent email
+                    console.log('Last email:', lastEmail);
+
                     const lastEmailRow = document.createElement('div');
                     lastEmailRow.className = 'project-detail-row';
 
@@ -3022,16 +3030,22 @@
 
                     lastEmailRow.innerHTML = `<strong>📧 Last email:</strong> ${lastEmail.recipient_email} (${date.toLocaleDateString()}) ${statusText}`;
                     emailSection.appendChild(lastEmailRow);
+                    console.log('Last email row added to section');
                 } else {
+                    console.log('No email history found');
                     const noEmailRow = document.createElement('div');
                     noEmailRow.className = 'project-detail-row';
                     noEmailRow.innerHTML = '<strong>📧 Last email:</strong> No emails sent yet';
                     emailSection.appendChild(noEmailRow);
                 }
+            } else {
+                console.log('Email history API failed:', response.status);
             }
         } catch (error) {
             console.error('Error loading last email info:', error);
         }
+
+        console.log('=== LOAD LAST EMAIL INFO END ===');
     }
 
     async function displayProjects() {
@@ -3223,25 +3237,76 @@
     }
 
     async function refreshEmailHistoryDisplays(projectId) {
+        console.log('=== REFRESH EMAIL HISTORY START ===');
         console.log('Refreshing email history displays for project:', projectId);
+        console.log('isDetailedProjectView:', isDetailedProjectView);
+        console.log('projectDetailModal hidden:', projectDetailModal.classList.contains('is-hidden'));
 
-        // 1. Refresh the project list if in detailed view
+        // 1. Update email history in detailed project view
         if (isDetailedProjectView) {
-            console.log('Refreshing detailed project view');
-            await displayProjects();
+            console.log('Updating email history in detailed project view');
+            await updateProjectEmailHistory(projectId);
         }
 
         // 2. Refresh project detail modal if it's open for this project
         if (!projectDetailModal.classList.contains('is-hidden')) {
             const currentProjectId = projectDetailModal.dataset.projectId;
+            console.log('Current modal project ID:', currentProjectId, 'Target project ID:', projectId);
             if (currentProjectId == projectId) {
                 console.log('Refreshing project detail modal');
                 const project = projects.find(p => p.id == projectId);
                 if (project) {
                     showProjectDetailModal(project);
+                } else {
+                    console.log('Project not found in projects array');
+                }
+            } else {
+                console.log('Modal is open but for different project');
+            }
+        }
+
+        console.log('=== REFRESH EMAIL HISTORY END ===');
+    }
+
+    async function updateProjectEmailHistory(projectId) {
+        console.log('=== UPDATE PROJECT EMAIL HISTORY START ===');
+        console.log('Updating email history for project:', projectId);
+
+        // Find the project card for this project ID
+        const projectCards = document.querySelectorAll('.project-card.detailed-view');
+
+        for (const card of projectCards) {
+            // Find the email history section in this card
+            const emailSection = card.querySelector('.email-history-section');
+            if (emailSection) {
+                // Check if this card is for the target project by looking at the toggle button
+                const toggleButton = emailSection.querySelector('.email-history-toggle');
+                if (toggleButton && toggleButton.dataset.projectId == projectId) {
+                    console.log('Found matching project card, updating email history');
+
+                    // Clear existing last email info
+                    const existingEmailRow = emailSection.querySelector('.project-detail-row');
+                    if (existingEmailRow) {
+                        existingEmailRow.remove();
+                    }
+
+                    // Add updated last email info
+                    await loadLastEmailInfo(projectId, emailSection);
+
+                    // If email history is expanded, refresh it too
+                    const emailList = emailSection.querySelector('.email-history-list');
+                    if (emailList && emailList.classList.contains('expanded')) {
+                        console.log('Email history is expanded, refreshing list');
+                        await toggleEmailHistory(projectId, toggleButton, emailList);
+                        await toggleEmailHistory(projectId, toggleButton, emailList); // Toggle twice to refresh
+                    }
+
+                    break;
                 }
             }
         }
+
+        console.log('=== UPDATE PROJECT EMAIL HISTORY END ===');
     }
 
     // Share Project Functions
