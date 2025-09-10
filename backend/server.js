@@ -766,6 +766,28 @@ app.get('/auth/verify-session', async (req, res) => {
     }
 });
 
+// Logout endpoint
+app.post('/auth/logout', async (req, res) => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.json({ message: 'Logged out successfully' });
+    }
+
+    const sessionToken = authHeader.substring(7);
+
+    try {
+        // Delete the session from database
+        db.prepare('DELETE FROM login_sessions WHERE session_token = ?').run(sessionToken);
+
+        res.json({ message: 'Logged out successfully' });
+
+    } catch (error) {
+        console.error('Error during logout:', error);
+        res.json({ message: 'Logged out successfully' }); // Always return success for logout
+    }
+});
+
 // Admin: Get all users (requires admin role)
 app.get('/admin/users', async (req, res) => {
     const authHeader = req.headers.authorization;

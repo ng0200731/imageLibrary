@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Image Library — Minimal Shell v2.20.2</title>
-  <link rel="stylesheet" href="styles.css?v=2.20.2&bust=20250910102000" />
+  <title>Image Library — Minimal Shell v2.20.3</title>
+  <link rel="stylesheet" href="styles.css?v=2.20.3&bust=20250910103000" />
 </head>
 <body>
   <div class="app">
@@ -23,10 +23,11 @@
         <a id="nav-project" class="menu__item" href="#">Project</a>
         <a id="nav-tags" class="menu__item" href="#">Tags</a>
         <a id="nav-settings" class="menu__item" href="#" onclick="openSettings()">Settings</a>
+        <a id="nav-logout" class="menu__item" href="#" onclick="logout()">Logout</a>
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.20.2</span>
+          <span class="version">v2.20.3</span>
       </div>
 
       <div class="sidebar__footer">
@@ -3472,8 +3473,35 @@
         }
     }
 
-    // Make openSettings globally available
+    async function logout() {
+        const sessionToken = localStorage.getItem('sessionToken');
+
+        // Call backend logout endpoint to invalidate session
+        if (sessionToken) {
+            try {
+                await fetch(`${API_URL}/auth/logout`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${sessionToken}` }
+                });
+            } catch (error) {
+                console.error('Error calling logout endpoint:', error);
+                // Continue with logout even if backend call fails
+            }
+        }
+
+        // Clear session token
+        localStorage.removeItem('sessionToken');
+
+        // Clear current user
+        currentUser = null;
+
+        // Redirect to login page
+        window.location.href = '/login.html';
+    }
+
+    // Make functions globally available
     window.openSettings = openSettings;
+    window.logout = logout;
 
     // Share Project Functions
     function showShareProjectModal(project) {

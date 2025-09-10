@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Image Library — Admin Panel v2.20.2</title>
-  <link rel="stylesheet" href="styles.css?v=2.20.2&bust=20250910102000" />
+  <title>Image Library — Admin Panel v2.20.3</title>
+  <link rel="stylesheet" href="styles.css?v=2.20.3&bust=20250910103000" />
   <style>
     .admin-container {
       max-width: 1200px;
@@ -163,7 +163,10 @@
   <div class="admin-container">
     <div class="admin-header">
       <h1 class="admin-title">Admin Panel - User Management</h1>
-      <a href="/" class="back-button">Back to Image Library</a>
+      <div>
+        <a href="/" class="back-button">Back to Image Library</a>
+        <button class="back-button" onclick="logout()" style="margin-left: 10px; background: #dc3545;">Logout</button>
+      </div>
     </div>
     
     <div id="message" class="hidden"></div>
@@ -318,9 +321,34 @@
       }
     }
     
-    // Make approveUser globally available
+    // Logout function
+    async function logout() {
+        const sessionToken = localStorage.getItem('sessionToken');
+
+        // Call backend logout endpoint to invalidate session
+        if (sessionToken) {
+            try {
+                await fetch(`${API_URL}/auth/logout`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${sessionToken}` }
+                });
+            } catch (error) {
+                console.error('Error calling logout endpoint:', error);
+                // Continue with logout even if backend call fails
+            }
+        }
+
+        // Clear session token
+        localStorage.removeItem('sessionToken');
+
+        // Redirect to login page
+        window.location.href = '/login.html';
+    }
+
+    // Make functions globally available
     window.approveUser = approveUser;
-    
+    window.logout = logout;
+
     // Load users on page load
     window.addEventListener('load', loadUsers);
   </script>
