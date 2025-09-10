@@ -639,7 +639,14 @@ app.post('/auth/send-code', async (req, res) => {
         );
 
         // Send email based on user status
-        await sendVerificationEmail(email, code, userStatus);
+        console.log(`Attempting to send verification email to ${email} with status ${userStatus}`);
+        try {
+            await sendVerificationEmail(email, code, userStatus);
+            console.log(`Verification email sent successfully to ${email}`);
+        } catch (emailError) {
+            console.error('Email sending failed:', emailError);
+            return res.status(500).json({ error: 'Failed to send verification email. Please try again.' });
+        }
 
         let message;
         if (userStatus === 'new') {
@@ -655,7 +662,7 @@ app.post('/auth/send-code', async (req, res) => {
         res.json({ message, userStatus: user.status });
 
     } catch (error) {
-        console.error('Error sending verification code:', error);
+        console.error('Error in send-code endpoint:', error);
         res.status(500).json({ error: 'Failed to send verification code' });
     }
 });
@@ -854,13 +861,18 @@ function generateSessionToken() {
 
 // Send verification code email
 async function sendVerificationEmail(email, code, userStatus) {
-    const transporter = nodemailer.createTransporter({
-        service: 'gmail',
+    // Use the same email configuration as the existing email service
+    const GMAIL_CONFIG = {
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
         auth: {
             user: 'eric.brilliant@gmail.com',
-            pass: 'your-app-password' // You'll need to set this
+            pass: 'opqx pfna kagb bznr'
         }
-    });
+    };
+
+    const transporter = nodemailer.createTransporter(GMAIL_CONFIG);
 
     let subject, content;
 
@@ -901,13 +913,18 @@ async function sendVerificationEmail(email, code, userStatus) {
 
 // Send approval email
 async function sendApprovalEmail(email) {
-    const transporter = nodemailer.createTransporter({
-        service: 'gmail',
+    // Use the same email configuration as the existing email service
+    const GMAIL_CONFIG = {
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
         auth: {
             user: 'eric.brilliant@gmail.com',
-            pass: 'your-app-password' // You'll need to set this
+            pass: 'opqx pfna kagb bznr'
         }
-    });
+    };
+
+    const transporter = nodemailer.createTransporter(GMAIL_CONFIG);
 
     const mailOptions = {
         from: 'eric.brilliant@gmail.com',
