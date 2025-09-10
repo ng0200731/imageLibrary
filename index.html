@@ -2315,6 +2315,9 @@
         console.log('=== SHOWPROJECTDETAILMODAL START ===');
         console.log('Opening project detail modal for:', project);
 
+        // Store project ID for reference
+        projectDetailModal.dataset.projectId = project.id;
+
         // Update header information
         projectDetailName.textContent = `📁 ${project.name}`;
         projectDetailDate.textContent = `📅 Created: ${new Date(project.created_at).toLocaleDateString()}`;
@@ -2341,6 +2344,7 @@
     function hideProjectDetailModal() {
         projectDetailModal.classList.add('is-hidden');
         projectDetailGrid.innerHTML = '';
+        delete projectDetailModal.dataset.projectId;
     }
 
     function getProjectTags(imageIds) {
@@ -3218,6 +3222,28 @@
         }
     }
 
+    async function refreshEmailHistoryDisplays(projectId) {
+        console.log('Refreshing email history displays for project:', projectId);
+
+        // 1. Refresh the project list if in detailed view
+        if (isDetailedProjectView) {
+            console.log('Refreshing detailed project view');
+            await displayProjects();
+        }
+
+        // 2. Refresh project detail modal if it's open for this project
+        if (!projectDetailModal.classList.contains('is-hidden')) {
+            const currentProjectId = projectDetailModal.dataset.projectId;
+            if (currentProjectId == projectId) {
+                console.log('Refreshing project detail modal');
+                const project = projects.find(p => p.id == projectId);
+                if (project) {
+                    showProjectDetailModal(project);
+                }
+            }
+        }
+    }
+
     // Share Project Functions
     function showShareProjectModal(project) {
         shareProjectName.textContent = project.name;
@@ -3646,6 +3672,9 @@
             if (response.ok) {
                 emailSendingOverlay.classList.add('is-hidden');
                 alert(`Project "${projectName}" has been shared successfully with ${email}!`);
+
+                // Refresh email history displays immediately
+                await refreshEmailHistoryDisplays(projectId);
             } else {
                 const error = await response.text();
                 throw new Error(error || 'Failed to share project');
