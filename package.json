@@ -1,6 +1,6 @@
 {
   "name": "image-lib",
-  "version": "2.20.1",
+  "version": "2.20.2",
   "description": "Image library with objective and subjective tagging.",
   "private": true,
   "scripts": {

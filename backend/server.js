@@ -872,7 +872,7 @@ async function sendVerificationEmail(email, code, userStatus) {
         }
     };
 
-    const transporter = nodemailer.createTransporter(GMAIL_CONFIG);
+    const transporter = nodemailer.createTransport(GMAIL_CONFIG);
 
     let subject, content;
 
@@ -924,7 +924,7 @@ async function sendApprovalEmail(email) {
         }
     };
 
-    const transporter = nodemailer.createTransporter(GMAIL_CONFIG);
+    const transporter = nodemailer.createTransport(GMAIL_CONFIG);
 
     const mailOptions = {
         from: 'eric.brilliant@gmail.com',
