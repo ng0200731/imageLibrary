@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Image Library — Login v2.20.3</title>
-  <link rel="stylesheet" href="styles.css?v=2.20.3&bust=20250910103000" />
+  <title>Image Library — Login v2.20.4</title>
+  <link rel="stylesheet" href="styles.css?v=2.20.4&bust=20250910104000" />
   <style>
     .login-container {
       display: flex;
@@ -63,20 +63,56 @@
       background: #007bff;
       color: white;
       border: none;
-      padding: 12px;
-      border-radius: 4px;
+      padding: 15px 25px;
+      border-radius: 6px;
       font-size: 16px;
+      font-weight: 600;
       cursor: pointer;
-      transition: background-color 0.2s;
+      transition: all 0.2s ease;
+      width: 100%;
+      margin-bottom: 10px;
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
-    
+
     .login-button:hover {
       background: #0056b3;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
     }
-    
+
+    .login-button:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+    }
+
     .login-button:disabled {
       background: #ccc;
       cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .login-button.loading {
+      background: #6c757d;
+      cursor: wait;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ffffff;
+      border-top: 2px solid transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
     
     .status-message {
@@ -131,7 +167,7 @@
             <label for="email-input" class="form-label">Email Address</label>
             <input type="email" id="email-input" class="form-input" placeholder="Enter your email" required>
           </div>
-          <button type="submit" id="send-code-btn" class="login-button">Send Verification Code</button>
+          <button type="submit" id="send-code-btn" class="login-button">📧 Send Verification Code</button>
         </form>
       </div>
       
@@ -143,8 +179,8 @@
             <label for="code-input" class="form-label">Verification Code</label>
             <input type="text" id="code-input" class="form-input" placeholder="Enter 6-digit code" maxlength="6" required>
           </div>
-          <button type="submit" id="verify-code-btn" class="login-button">Verify & Login</button>
-          <button type="button" id="back-to-email-btn" class="login-button" style="background: #6c757d;">Back to Email</button>
+          <button type="submit" id="verify-code-btn" class="login-button">🔐 Verify & Login</button>
+          <button type="button" id="back-to-email-btn" class="login-button" style="background: #6c757d; margin-top: 10px;">← Back to Email</button>
         </form>
       </div>
     </div>
@@ -193,54 +229,76 @@
       emailInput.focus();
     }
     
+    // Set button loading state
+    function setButtonLoading(button, loading, originalText) {
+      if (loading) {
+        button.disabled = true;
+        button.classList.add('loading');
+        button.innerHTML = `<div class="spinner"></div> Loading...`;
+      } else {
+        button.disabled = false;
+        button.classList.remove('loading');
+        button.innerHTML = originalText;
+      }
+    }
+
     // Handle email form submission
     emailForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       const email = emailInput.value.trim();
-      if (!email) return;
-      
+      if (!email) {
+        showStatus('Please enter a valid email address', 'error');
+        return;
+      }
+
       currentEmail = email;
-      sendCodeBtn.disabled = true;
-      sendCodeBtn.textContent = 'Sending...';
-      
+      setButtonLoading(sendCodeBtn, true, '📧 Send Verification Code');
+      hideStatus();
+
       try {
+        showStatus('Sending verification code...', 'info');
+
         const response = await fetch(`${API_URL}/auth/send-code`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email })
         });
-        
+
         const result = await response.json();
         
         if (response.ok) {
-          showStatus(result.message, 'success');
-          showCodeStep();
+          showStatus(`✅ ${result.message}`, 'success');
+          setTimeout(() => {
+            showCodeStep();
+          }, 1000);
         } else {
-          showStatus(result.error || 'Failed to send verification code', 'error');
+          showStatus(`❌ ${result.error || 'Failed to send verification code'}`, 'error');
         }
       } catch (error) {
-        showStatus('Network error. Please try again.', 'error');
+        console.error('Email sending error:', error);
+        showStatus('❌ Network error. Please check your connection and try again.', 'error');
       } finally {
-        sendCodeBtn.disabled = false;
-        sendCodeBtn.textContent = 'Send Verification Code';
+        setButtonLoading(sendCodeBtn, false, '📧 Send Verification Code');
       }
     });
     
     // Handle code form submission
     codeForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       const code = codeInput.value.trim();
       if (!code || code.length !== 6) {
-        showStatus('Please enter a 6-digit verification code', 'error');
+        showStatus('❌ Please enter a 6-digit verification code', 'error');
         return;
       }
-      
-      verifyCodeBtn.disabled = true;
-      verifyCodeBtn.textContent = 'Verifying...';
-      
+
+      setButtonLoading(verifyCodeBtn, true, '🔐 Verify & Login');
+      hideStatus();
+
       try {
+        showStatus('🔐 Verifying code...', 'info');
+
         const response = await fetch(`${API_URL}/auth/verify-code`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -252,20 +310,22 @@
         if (response.ok) {
           // Store session token
           localStorage.setItem('sessionToken', result.sessionToken);
-          showStatus('Login successful! Redirecting...', 'success');
-          
+          showStatus('✅ Login successful! Redirecting to Image Library...', 'success');
+
           // Redirect to main app
           setTimeout(() => {
             window.location.href = '/';
-          }, 1500);
+          }, 2000);
         } else {
-          showStatus(result.error || 'Invalid verification code', 'error');
+          showStatus(`❌ ${result.error || 'Invalid verification code'}`, 'error');
+          codeInput.value = '';
+          codeInput.focus();
         }
       } catch (error) {
-        showStatus('Network error. Please try again.', 'error');
+        console.error('Code verification error:', error);
+        showStatus('❌ Network error. Please check your connection and try again.', 'error');
       } finally {
-        verifyCodeBtn.disabled = false;
-        verifyCodeBtn.textContent = 'Verify & Login';
+        setButtonLoading(verifyCodeBtn, false, '🔐 Verify & Login');
       }
     });
     
