@@ -2262,13 +2262,17 @@
 
     function showProjectNameModal() {
         console.log('Selected images before modal:', selectedImages);
+        console.log('Tag-selected images before modal:', tagSelectedImages);
 
-        // Safety check: Don't execute if no selections
-        if (selectedImages.length === 0) {
+        // Safety check: Don't execute if no selections (check both manual and tag selections)
+        const totalSelections = selectedImages.length + tagSelectedImages.length;
+        if (totalSelections === 0) {
             console.warn('showProjectNameModal called but no images are selected');
             alert('Please select at least one image.');
             return;
         }
+
+        console.log(`Total selections for project: ${totalSelections} (${selectedImages.length} manual + ${tagSelectedImages.length} tag-based)`);
 
         projectNameInput.value = '';
         projectNameModal.classList.remove('is-hidden');
@@ -2785,15 +2789,21 @@
 
     async function createProject() {
         const projectName = projectNameInput.value.trim();
+
+        // Combine both manual and tag-based selections
+        const allSelectedImages = [...new Set([...selectedImages, ...tagSelectedImages])];
+
         console.log('Creating project with selected images:', selectedImages);
+        console.log('Creating project with tag-selected images:', tagSelectedImages);
+        console.log('Creating project with combined images:', allSelectedImages);
 
         if (!projectName) {
             alert('Please enter a project name.');
             return;
         }
 
-        // Check if we have selected images
-        if (selectedImages.length === 0) {
+        // Check if we have selected images (check combined selections)
+        if (allSelectedImages.length === 0) {
             alert('Please select at least one image before creating a project.');
             return;
         }
@@ -2805,12 +2815,12 @@
         }
 
         // Store the count before clearing selection
-        const imageCount = selectedImages.length;
+        const imageCount = allSelectedImages.length;
 
         try {
             // Generate selection breakdown before saving
             const breakdown = generateSelectionBreakdown();
-            const newProject = await saveProjectToAPI(projectName, [...selectedImages], breakdown);
+            const newProject = await saveProjectToAPI(projectName, [...allSelectedImages], breakdown);
             displayProjects();
 
             // Store the created project for navigation
