@@ -1,3 +1,4 @@
+console.log('Starting server...');
 const express = require('express');
 const Database = require('better-sqlite3');
 const multer = require('multer');
@@ -5,6 +6,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const { sendProjectEmail } = require('./email_service');
+console.log('All modules loaded successfully');
 
 const app = express();
 const port = 3000;
@@ -88,19 +90,50 @@ app.post('/upload', upload.array('images'), (req, res) => {
     // Create a single, reusable transaction function
     const uploadTransaction = db.transaction((files, metadata, regularTags) => {
         for (const file of files) {
-            const imageResult = insertImage.run(
-                file.path,
-                metadata.book,
-                metadata.page,
-                metadata.row,
-                metadata.column,
-                metadata.type,
-                metadata.material,
-                metadata.dimension,
-                metadata.remark,
-                metadata.brand,
-                metadata.color
-            );
+            let imageResult;
+            let filePath = file.path;
+            let attempts = 0;
+            const maxAttempts = 10;
+
+            // Handle UNIQUE constraint on filepath by generating new filename if needed
+            console.log(`Processing file: ${file.originalname}, path: ${filePath}`);
+            while (attempts < maxAttempts) {
+                try {
+                    console.log(`Attempt ${attempts + 1}: Inserting ${filePath} into database`);
+                    imageResult = insertImage.run(
+                        filePath,
+                        metadata.book,
+                        metadata.page,
+                        metadata.row,
+                        metadata.column,
+                        metadata.type,
+                        metadata.material,
+                        metadata.dimension,
+                        metadata.remark,
+                        metadata.brand,
+                        metadata.color
+                    );
+                    break; // Success, exit the retry loop
+                } catch (err) {
+                    console.log('Database insert error:', err.code, err.message);
+                    if ((err.code === 'SQLITE_CONSTRAINT_UNIQUE' || err.message.includes('UNIQUE constraint failed')) && attempts < maxAttempts - 1) {
+                        // Generate a new unique filename
+                        attempts++;
+                        const timestamp = Date.now() + attempts;
+                        const ext = path.extname(file.originalname);
+                        const newFilename = timestamp + ext;
+                        const newFilePath = path.join(uploadDir, newFilename);
+
+                        // Rename the physical file
+                        fs.renameSync(file.path, newFilePath);
+                        filePath = newFilePath;
+
+                        console.log(`Filepath conflict resolved. Renamed to: ${newFilePath}`);
+                    } else {
+                        throw err; // Re-throw if not a UNIQUE constraint error or max attempts reached
+                    }
+                }
+            }
             const imageId = imageResult.lastInsertRowid;
 
             // Link all original tags (includes both metadata and regular tags)

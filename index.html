@@ -26,7 +26,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.17.71</span>
+          <span class="version">v2.17.76</span>
       </div>
 
       <div class="sidebar__footer">
@@ -40,6 +40,18 @@
         <header class="content__header">
           <h1 class="title">Image Library</h1>
           <div class="legend" style="margin-top:8px;">Solid = Objective, Dashed = Subjective</div>
+
+          <!-- Broken Image Notification -->
+          <div id="broken-image-notification" class="broken-image-notification hidden">
+            <div class="notification-content">
+              <span class="notification-icon">⚠️</span>
+              <span class="notification-text">
+                <span id="broken-count">0</span> images could not be loaded.
+                <span class="notification-reason">Backend server may not be running.</span>
+              </span>
+              <button id="dismiss-notification" class="notification-dismiss">✕</button>
+            </div>
+          </div>
           <div id="selection-controls" class="selection-controls is-hidden">
             <button id="select-all-btn" class="button" type="button">Select All</button>
             <button id="deselect-all-btn" class="button" type="button">Deselect All</button>
@@ -385,6 +397,16 @@
         </div>
       </div>
 
+      <!-- Tag Removal Notification Modal -->
+      <div id="tag-removal-notification-modal" class="modal is-hidden">
+        <div class="modal-content-text">
+          <p id="tag-removal-message">Tag removed and images deselected!</p>
+          <div class="modal-buttons">
+            <button id="tag-removal-continue-btn" class="button is-primary">Continue</button>
+          </div>
+        </div>
+      </div>
+
   <script>
     // --- Constants & State ---
     const API_URL = 'http://localhost:3000';
@@ -393,6 +415,38 @@
         upload: document.getElementById('nav-upload'),
         project: document.getElementById('nav-project'),
     };
+
+    // Broken image tracking
+    let brokenImages = [];
+    let brokenImageNotificationShown = false;
+
+    // Broken image functions
+    function trackBrokenImage(imageId, imageSrc) {
+        if (!brokenImages.find(img => img.id === imageId)) {
+            brokenImages.push({ id: imageId, src: imageSrc });
+            updateBrokenImageNotification();
+        }
+    }
+
+    function updateBrokenImageNotification() {
+        const notification = document.getElementById('broken-image-notification');
+        const countElement = document.getElementById('broken-count');
+
+        if (brokenImages.length > 0) {
+            countElement.textContent = brokenImages.length;
+            notification.classList.remove('hidden');
+
+            // Log broken images for debugging
+            console.warn(`${brokenImages.length} images failed to load:`, brokenImages);
+        } else {
+            notification.classList.add('hidden');
+        }
+    }
+
+    function clearBrokenImageTracking() {
+        brokenImages = [];
+        updateBrokenImageNotification();
+    }
     const pages = {
         library: document.getElementById('page-library'),
         upload: document.getElementById('page-upload'),
@@ -491,6 +545,9 @@
     const updateTagSave = document.getElementById('update-tag-save');
     const tagUpdateSuccessModal = document.getElementById('tag-update-success-modal');
     const tagUpdateContinueBtn = document.getElementById('tag-update-continue-btn');
+    const tagRemovalNotificationModal = document.getElementById('tag-removal-notification-modal');
+    const tagRemovalMessage = document.getElementById('tag-removal-message');
+    const tagRemovalContinueBtn = document.getElementById('tag-removal-continue-btn');
 
     // Image preview overlay elements
     const imagePreviewOverlay = document.getElementById('image-preview-overlay');
@@ -720,6 +777,9 @@
         console.log('currentSearchTags:', currentSearchTags);
 
         try {
+            // Clear broken image tracking for new load
+            clearBrokenImageTracking();
+
             // Get all images first
             const allImagesResponse = await fetch(`${API_URL}/images`);
             const allImages = await allImagesResponse.json();
@@ -959,13 +1019,32 @@
                 addTagGroupHeaders(images);
             }
 
-            images.forEach((image, index) => {
+            // Process images with broken image detection
+            const imagePromises = images.map(async (image, index) => {
+                const imageSrc = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
+
+                // Test if image loads
+                return new Promise((resolve) => {
+                    const testImg = new Image();
+                    testImg.onload = () => resolve({ image, index, imageSrc, loaded: true });
+                    testImg.onerror = () => {
+                        trackBrokenImage(image.id, imageSrc);
+                        resolve({ image, index, imageSrc, loaded: false });
+                    };
+                    testImg.src = imageSrc;
+                });
+            });
+
+            // Wait for all image load tests to complete
+            const imageResults = await Promise.all(imagePromises);
+
+            // Only display images that loaded successfully
+            imageResults.filter(result => result.loaded).forEach(({ image, index, imageSrc }) => {
                 const card = document.createElement('div');
                 card.className = 'preview-card library-card';
                 card.dataset.imageId = image.id;
 
                 const img = document.createElement('img');
-                const imageSrc = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
                 img.src = imageSrc;
 
                 // Store image data for lightbox navigation
@@ -1197,6 +1276,7 @@
         navLinks[pageName].classList.add('is-active');
 
         if (pageName === 'library') {
+            clearBrokenImageTracking();
             initializeFreshSearchInput();
             displayLibraryImages();
         } else if (pageName === 'project') {
@@ -1523,6 +1603,11 @@
         console.log('Removed images with tag "' + tagText + '":', imagesToRemove);
         console.log('Remaining selectedImages:', selectedImages.length);
 
+        // Show notification about tag removal and image deselection
+        if (imagesToRemove.length > 0) {
+            showTagRemovalNotification(tagText, imagesToRemove.length);
+        }
+
         // Remove chip from DOM
         const chips = librarySearchChips.querySelectorAll('.search-chip');
         chips.forEach(chip => {
@@ -1592,6 +1677,11 @@
 
         console.log('Removed images with tag "' + tagText + '":', imagesToRemove);
         console.log('Remaining selectedImages:', selectedImages.length);
+
+        // Show notification about tag removal and image deselection
+        if (imagesToRemove.length > 0) {
+            showTagRemovalNotification(tagText, imagesToRemove.length);
+        }
 
         // Remove chip from DOM
         const chips = librarySearchChips.querySelectorAll('.search-chip');
@@ -2338,16 +2428,28 @@
                 card.className = 'project-image-card';
 
                 const img = document.createElement('img');
-                img.src = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
+                const imageSrc = `${API_URL}/${image.filepath.replace(/\\/g, '/')}`;
                 img.alt = `Image ${image.id}`;
 
-                // Add click handler for lightbox
-                img.addEventListener('click', () => {
-                    // Open lightbox for this image
-                    openProjectImageLightbox(image, projectImages);
-                });
+                // Test image loading before displaying
+                const testImg = new Image();
+                testImg.onload = () => {
+                    img.src = imageSrc;
 
-                card.appendChild(img);
+                    // Add click handler for lightbox
+                    img.addEventListener('click', () => {
+                        // Open lightbox for this image
+                        openProjectImageLightbox(image, projectImages);
+                    });
+
+                    card.appendChild(img);
+                };
+                testImg.onerror = () => {
+                    // Skip broken images in project view
+                    console.warn(`Project image failed to load: ${imageSrc} (ID: ${image.id})`);
+                    // Don't append the img to the card
+                };
+                testImg.src = imageSrc;
 
                 // Add tag overlay - show tags on project images (same style as library)
                 const imageTags = image.tags || [];
@@ -3082,6 +3184,23 @@
         tagUpdateSuccessModal.classList.add('is-hidden');
     }
 
+    function showTagRemovalNotification(tagText, deselectedCount) {
+        // Update the message with specific details
+        tagRemovalMessage.textContent = `Tag "${tagText}" removed and ${deselectedCount} image${deselectedCount !== 1 ? 's' : ''} deselected!`;
+
+        // Show the notification modal
+        tagRemovalNotificationModal.classList.remove('is-hidden');
+
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            hideTagRemovalNotification();
+        }, 3000);
+    }
+
+    function hideTagRemovalNotification() {
+        tagRemovalNotificationModal.classList.add('is-hidden');
+    }
+
     async function saveTagUpdates() {
         console.log('Saving tag updates...');
         console.log('Selected images:', selectedImages);
@@ -3248,6 +3367,11 @@
     navLinks.library.addEventListener('click', (e) => { e.preventDefault(); navigateTo('library'); });
     navLinks.upload.addEventListener('click', (e) => { e.preventDefault(); navigateTo('upload'); });
     navLinks.project.addEventListener('click', (e) => { e.preventDefault(); navigateTo('project'); });
+
+    // Broken image notification dismiss
+    document.getElementById('dismiss-notification').addEventListener('click', () => {
+        document.getElementById('broken-image-notification').classList.add('hidden');
+    });
 
     fileInput.addEventListener('change', (event) => {
         handleFiles(event.target.files);
@@ -3650,6 +3774,7 @@
     addNewTagBtn.addEventListener('click', addNewTags);
     removeAllTagsBtn.addEventListener('click', removeAllTagsFromSelected);
     tagUpdateContinueBtn.addEventListener('click', hideTagUpdateSuccess);
+    tagRemovalContinueBtn.addEventListener('click', hideTagRemovalNotification);
 
     // Add tag input enter key support
     newTagInput.addEventListener('keydown', (e) => {

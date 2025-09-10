@@ -2066,4 +2066,60 @@ body {
   text-align: center;
 }
 
+/* Broken Image Notification */
+.broken-image-notification {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 10px 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+.broken-image-notification.hidden {
+  display: none;
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notification-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.notification-text {
+  flex: 1;
+  font-size: 14px;
+  color: #856404;
+}
+
+.notification-reason {
+  font-weight: 600;
+}
+
+.notification-dismiss {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #856404;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.notification-dismiss:hover {
+  background-color: rgba(133, 100, 4, 0.1);
+}
+
 
