@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Image Library — Admin Panel v2.20.0</title>
+  <link rel="stylesheet" href="styles.css?v=2.20.0&bust=20250910100000" />
+  <style>
+    .admin-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #eee;
+    }
+    
+    .admin-title {
+      font-size: 28px;
+      font-weight: bold;
+    }
+    
+    .back-button {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .back-button:hover {
+      background: #5a6268;
+    }
+    
+    .users-section {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    
+    .section-header {
+      background: #f8f9fa;
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    
+    .users-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .users-table th,
+    .users-table td {
+      padding: 12px 20px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .users-table th {
+      background: #f8f9fa;
+      font-weight: bold;
+    }
+    
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    
+    .status-pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    .status-approved {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .status-rejected {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    .role-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    
+    .role-admin {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+    
+    .role-user {
+      background: #e2e3e5;
+      color: #383d41;
+    }
+    
+    .approve-button {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    .approve-button:hover {
+      background: #218838;
+    }
+    
+    .approve-button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+    
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    
+    .success {
+      background: #d4edda;
+      color: #155724;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <div class="admin-header">
+      <h1 class="admin-title">Admin Panel - User Management</h1>
+      <a href="/" class="back-button">Back to Image Library</a>
+    </div>
+    
+    <div id="message" class="hidden"></div>
+    
+    <div class="users-section">
+      <div class="section-header">
+        User Access Management
+      </div>
+      
+      <div id="loading" class="loading">
+        Loading users...
+      </div>
+      
+      <div id="users-content" class="hidden">
+        <table class="users-table">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Status</th>
+              <th>Role</th>
+              <th>Registration Date</th>
+              <th>Last Login</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3000';
+    
+    // DOM elements
+    const messageDiv = document.getElementById('message');
+    const loadingDiv = document.getElementById('loading');
+    const usersContent = document.getElementById('users-content');
+    const usersTbody = document.getElementById('users-tbody');
+    
+    // Show message
+    function showMessage(text, type = 'success') {
+      messageDiv.textContent = text;
+      messageDiv.className = type;
+      messageDiv.classList.remove('hidden');
+      
+      setTimeout(() => {
+        messageDiv.classList.add('hidden');
+      }, 5000);
+    }
+    
+    // Format date
+    function formatDate(dateString) {
+      if (!dateString) return 'Never';
+      return new Date(dateString).toLocaleDateString();
+    }
+    
+    // Load users
+    async function loadUsers() {
+      const sessionToken = localStorage.getItem('sessionToken');
+      
+      if (!sessionToken) {
+        window.location.href = '/login.html';
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_URL}/admin/users`, {
+          headers: { 'Authorization': `Bearer ${sessionToken}` }
+        });
+        
+        if (response.status === 401 || response.status === 403) {
+          window.location.href = '/login.html';
+          return;
+        }
+        
+        if (!response.ok) {
+          throw new Error('Failed to load users');
+        }
+        
+        const users = await response.json();
+        displayUsers(users);
+        
+      } catch (error) {
+        console.error('Error loading users:', error);
+        showMessage('Failed to load users', 'error');
+      } finally {
+        loadingDiv.classList.add('hidden');
+        usersContent.classList.remove('hidden');
+      }
+    }
+    
+    // Display users
+    function displayUsers(users) {
+      usersTbody.innerHTML = '';
+      
+      users.forEach(user => {
+        const row = document.createElement('tr');
+        
+        const statusClass = `status-${user.status}`;
+        const roleClass = `role-${user.role}`;
+        
+        row.innerHTML = `
+          <td>${user.email}</td>
+          <td><span class="status-badge ${statusClass}">${user.status}</span></td>
+          <td><span class="role-badge ${roleClass}">${user.role}</span></td>
+          <td>${formatDate(user.created_at)}</td>
+          <td>${formatDate(user.last_login)}</td>
+          <td>
+            ${user.status === 'pending' ? 
+              `<button class="approve-button" onclick="approveUser(${user.id})">Approve</button>` : 
+              '-'
+            }
+          </td>
+        `;
+        
+        usersTbody.appendChild(row);
+      });
+    }
+    
+    // Approve user
+    async function approveUser(userId) {
+      const sessionToken = localStorage.getItem('sessionToken');
+      
+      if (!sessionToken) {
+        window.location.href = '/login.html';
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_URL}/admin/users/${userId}/approve`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${sessionToken}` }
+        });
+        
+        if (response.status === 401 || response.status === 403) {
+          window.location.href = '/login.html';
+          return;
+        }
+        
+        if (!response.ok) {
+          throw new Error('Failed to approve user');
+        }
+        
+        showMessage('User approved successfully!');
+        loadUsers(); // Reload users
+        
+      } catch (error) {
+        console.error('Error approving user:', error);
+        showMessage('Failed to approve user', 'error');
+      }
+    }
+    
+    // Make approveUser globally available
+    window.approveUser = approveUser;
+    
+    // Load users on page load
+    window.addEventListener('load', loadUsers);
+  </script>
+</body>
+</html>

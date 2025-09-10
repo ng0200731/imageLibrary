@@ -5,6 +5,8 @@ const multer = require('multer');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { sendProjectEmail } = require('./email_service');
 console.log('All modules loaded successfully');
 
@@ -15,6 +17,24 @@ const port = 3000;
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
+
+// Serve static files
+app.use(express.static('../'));
+
+// Route for login page
+app.get('/login.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '../login.html'));
+});
+
+// Route for admin page
+app.get('/admin.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '../admin.html'));
+});
+
+// Route for main app
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../index.html'));
+});
 
 // --- Database Connection ---
 const db = new Database('database.sqlite');
@@ -583,6 +603,325 @@ app.get('/projects/:id/email-history', (req, res) => {
         res.status(500).send('Error fetching email history');
     }
 });
+
+// --- Authentication Endpoints ---
+
+// Send verification code
+app.post('/auth/send-code', async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+    }
+
+    try {
+        // Check if user exists
+        let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+        let userStatus = 'existing';
+
+        if (!user) {
+            // Create new user with pending status
+            const stmt = db.prepare('INSERT INTO users (email, status, role) VALUES (?, ?, ?)');
+            const result = stmt.run(email, 'pending', 'user');
+            user = { id: result.lastInsertRowid, email, status: 'pending', role: 'user' };
+            userStatus = 'new';
+        } else if (user.status === 'pending') {
+            userStatus = 'pending';
+        }
+
+        // Generate verification code
+        const code = generateVerificationCode();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        // Store verification code
+        db.prepare('INSERT INTO verification_codes (email, code, expires_at) VALUES (?, ?, ?)').run(
+            email, code, expiresAt.toISOString()
+        );
+
+        // Send email based on user status
+        await sendVerificationEmail(email, code, userStatus);
+
+        let message;
+        if (userStatus === 'new') {
+            message = 'Verification code sent. Your application is under review.';
+        } else if (userStatus === 'pending') {
+            message = 'Verification code sent. Your application is still under review.';
+        } else if (user.status === 'approved') {
+            message = 'Verification code sent to your email.';
+        } else {
+            message = 'Your account is not approved for access.';
+        }
+
+        res.json({ message, userStatus: user.status });
+
+    } catch (error) {
+        console.error('Error sending verification code:', error);
+        res.status(500).json({ error: 'Failed to send verification code' });
+    }
+});
+
+// Verify code and login
+app.post('/auth/verify-code', async (req, res) => {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+        return res.status(400).json({ error: 'Email and code are required' });
+    }
+
+    try {
+        // Check verification code
+        const verificationRecord = db.prepare(`
+            SELECT * FROM verification_codes
+            WHERE email = ? AND code = ? AND used = FALSE AND expires_at > datetime('now')
+            ORDER BY created_at DESC LIMIT 1
+        `).get(email, code);
+
+        if (!verificationRecord) {
+            return res.status(400).json({ error: 'Invalid or expired verification code' });
+        }
+
+        // Check user status
+        const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+
+        if (!user) {
+            return res.status(400).json({ error: 'User not found' });
+        }
+
+        if (user.status !== 'approved') {
+            return res.status(403).json({ error: 'Account not approved for access' });
+        }
+
+        // Mark code as used
+        db.prepare('UPDATE verification_codes SET used = TRUE WHERE id = ?').run(verificationRecord.id);
+
+        // Update last login
+        db.prepare('UPDATE users SET last_login = datetime(\'now\') WHERE id = ?').run(user.id);
+
+        // Generate session token
+        const sessionToken = generateSessionToken();
+        const sessionExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+        // Store session
+        db.prepare('INSERT INTO login_sessions (user_id, session_token, expires_at) VALUES (?, ?, ?)').run(
+            user.id, sessionToken, sessionExpiresAt.toISOString()
+        );
+
+        res.json({
+            message: 'Login successful',
+            sessionToken,
+            user: {
+                id: user.id,
+                email: user.email,
+                role: user.role
+            }
+        });
+
+    } catch (error) {
+        console.error('Error verifying code:', error);
+        res.status(500).json({ error: 'Failed to verify code' });
+    }
+});
+
+// Verify session
+app.get('/auth/verify-session', async (req, res) => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'No valid session token' });
+    }
+
+    const sessionToken = authHeader.substring(7);
+
+    try {
+        const session = db.prepare(`
+            SELECT s.*, u.email, u.role, u.status
+            FROM login_sessions s
+            JOIN users u ON s.user_id = u.id
+            WHERE s.session_token = ? AND s.expires_at > datetime('now')
+        `).get(sessionToken);
+
+        if (!session) {
+            return res.status(401).json({ error: 'Invalid or expired session' });
+        }
+
+        res.json({
+            user: {
+                id: session.user_id,
+                email: session.email,
+                role: session.role,
+                status: session.status
+            }
+        });
+
+    } catch (error) {
+        console.error('Error verifying session:', error);
+        res.status(500).json({ error: 'Failed to verify session' });
+    }
+});
+
+// Admin: Get all users (requires admin role)
+app.get('/admin/users', async (req, res) => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'No valid session token' });
+    }
+
+    const sessionToken = authHeader.substring(7);
+
+    try {
+        // Verify admin session
+        const session = db.prepare(`
+            SELECT s.*, u.email, u.role
+            FROM login_sessions s
+            JOIN users u ON s.user_id = u.id
+            WHERE s.session_token = ? AND s.expires_at > datetime('now') AND u.role = 'admin'
+        `).get(sessionToken);
+
+        if (!session) {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+
+        // Get all users
+        const users = db.prepare(`
+            SELECT id, email, status, role, created_at, approved_at, last_login
+            FROM users
+            ORDER BY created_at DESC
+        `).all();
+
+        res.json(users);
+
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+// Admin: Approve user
+app.post('/admin/users/:id/approve', async (req, res) => {
+    const authHeader = req.headers.authorization;
+    const userId = parseInt(req.params.id);
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'No valid session token' });
+    }
+
+    const sessionToken = authHeader.substring(7);
+
+    try {
+        // Verify admin session
+        const session = db.prepare(`
+            SELECT s.*, u.email, u.role
+            FROM login_sessions s
+            JOIN users u ON s.user_id = u.id
+            WHERE s.session_token = ? AND s.expires_at > datetime('now') AND u.role = 'admin'
+        `).get(sessionToken);
+
+        if (!session) {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+
+        // Get user to approve
+        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Update user status
+        db.prepare('UPDATE users SET status = ?, approved_at = datetime(\'now\') WHERE id = ?').run('approved', userId);
+
+        // Send approval email
+        await sendApprovalEmail(user.email);
+
+        res.json({ message: 'User approved successfully' });
+
+    } catch (error) {
+        console.error('Error approving user:', error);
+        res.status(500).json({ error: 'Failed to approve user' });
+    }
+});
+
+// Generate random 6-digit code
+function generateVerificationCode() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// Generate session token
+function generateSessionToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+// Send verification code email
+async function sendVerificationEmail(email, code, userStatus) {
+    const transporter = nodemailer.createTransporter({
+        service: 'gmail',
+        auth: {
+            user: 'eric.brilliant@gmail.com',
+            pass: 'your-app-password' // You'll need to set this
+        }
+    });
+
+    let subject, content;
+
+    if (userStatus === 'new') {
+        subject = 'Registration of Image Library';
+        content = `
+            <h2>Welcome to Image Library</h2>
+            <p>Your verification code is: <strong>${code}</strong></p>
+            <p>We are reviewing your application, and once it is approved, we will send email to update.</p>
+            <p>This code expires in 10 minutes.</p>
+        `;
+    } else if (userStatus === 'pending') {
+        subject = 'Your application of the image library is still under reviewing';
+        content = `
+            <h2>Application Under Review</h2>
+            <p>Your verification code is: <strong>${code}</strong></p>
+            <p>We are reviewing your application, and once it is approved, we will send email to update.</p>
+            <p>This code expires in 10 minutes.</p>
+        `;
+    } else {
+        subject = 'Image Library - Verification Code';
+        content = `
+            <h2>Login Verification</h2>
+            <p>Your verification code is: <strong>${code}</strong></p>
+            <p>This code expires in 10 minutes.</p>
+        `;
+    }
+
+    const mailOptions = {
+        from: 'eric.brilliant@gmail.com',
+        to: email,
+        subject: subject,
+        html: content
+    };
+
+    await transporter.sendMail(mailOptions);
+}
+
+// Send approval email
+async function sendApprovalEmail(email) {
+    const transporter = nodemailer.createTransporter({
+        service: 'gmail',
+        auth: {
+            user: 'eric.brilliant@gmail.com',
+            pass: 'your-app-password' // You'll need to set this
+        }
+    });
+
+    const mailOptions = {
+        from: 'eric.brilliant@gmail.com',
+        to: email,
+        subject: 'Approval access of image library',
+        html: `
+            <h2>Application Approved!</h2>
+            <p>We have approved your application.</p>
+            <p>You can now access the Image Library system.</p>
+        `
+    };
+
+    await transporter.sendMail(mailOptions);
+}
 
 app.listen(port, () => {
     console.log(`Server listening at http://localhost:${port}`);

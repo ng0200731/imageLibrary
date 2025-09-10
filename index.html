@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Image Library — Minimal Shell v2.19.1</title>
-  <link rel="stylesheet" href="styles.css?v=2.19.1&bust=20250910091000" />
+  <title>Image Library — Minimal Shell v2.20.0</title>
+  <link rel="stylesheet" href="styles.css?v=2.20.0&bust=20250910100000" />
 </head>
 <body>
   <div class="app">
@@ -22,11 +22,11 @@
         <a id="nav-upload" class="menu__item" href="#">Upload Image</a>
         <a id="nav-project" class="menu__item" href="#">Project</a>
         <a id="nav-tags" class="menu__item" href="#">Tags</a>
-        <a id="nav-settings" class="menu__item" href="#">Settings</a>
+        <a id="nav-settings" class="menu__item" href="#" onclick="openSettings()">Settings</a>
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.19.1</span>
+          <span class="version">v2.20.0</span>
       </div>
 
       <div class="sidebar__footer">
@@ -633,6 +633,7 @@
     let autocompleteVisible = false; // Track if autocomplete dropdown is visible
     let autocompleteHighlightIndex = -1; // Track highlighted item in autocomplete
     let autocompleteItems = []; // Store current autocomplete suggestions
+    let currentUser = null; // Store current logged-in user
 
     // Selection Pool preview navigation
     let currentPreviewImages = []; // Array of images for navigation
@@ -3422,6 +3423,58 @@
         return false;
     }
 
+    // Authentication Functions
+    async function checkAuthentication() {
+        const sessionToken = localStorage.getItem('sessionToken');
+
+        if (!sessionToken) {
+            window.location.href = '/login.html';
+            return false;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/auth/verify-session`, {
+                headers: { 'Authorization': `Bearer ${sessionToken}` }
+            });
+
+            if (!response.ok) {
+                localStorage.removeItem('sessionToken');
+                window.location.href = '/login.html';
+                return false;
+            }
+
+            const result = await response.json();
+            currentUser = result.user;
+
+            // Show/hide settings based on admin role
+            const settingsLink = document.getElementById('nav-settings');
+            if (currentUser.role === 'admin') {
+                settingsLink.style.display = 'block';
+            } else {
+                settingsLink.style.display = 'none';
+            }
+
+            return true;
+
+        } catch (error) {
+            console.error('Authentication check failed:', error);
+            localStorage.removeItem('sessionToken');
+            window.location.href = '/login.html';
+            return false;
+        }
+    }
+
+    function openSettings() {
+        if (currentUser && currentUser.role === 'admin') {
+            window.location.href = '/admin.html';
+        } else {
+            alert('Admin access required');
+        }
+    }
+
+    // Make openSettings globally available
+    window.openSettings = openSettings;
+
     // Share Project Functions
     function showShareProjectModal(project) {
         shareProjectName.textContent = project.name;
@@ -4363,9 +4416,13 @@
         }
     });
 
-    // Load projects on startup
-    loadProjectsFromAPI().then(() => {
-        displayProjects();
+    // Check authentication and load projects on startup
+    checkAuthentication().then(isAuthenticated => {
+        if (isAuthenticated) {
+            loadProjectsFromAPI().then(() => {
+                displayProjects();
+            });
+        }
     });
 
 
