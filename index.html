@@ -1909,6 +1909,9 @@
             selectedImages.push(imageId);
             cardElement.classList.add('selected');
 
+            // Remove pool-deselected class to restore red borders
+            cardElement.classList.remove('pool-deselected');
+
             // Track selection timestamp for ordering (latest first in pool view)
             imageSelectionOrder[imageId] = Date.now();
 
