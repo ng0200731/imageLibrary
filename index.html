@@ -438,6 +438,7 @@
     // Broken image tracking
     let brokenImages = [];
     let brokenImageNotificationShown = false;
+    let brokenImageNotificationDismissed = localStorage.getItem('brokenImageNotificationDismissed') === 'true';
 
     // Broken image functions
     function trackBrokenImage(imageId, imageSrc) {
@@ -451,7 +452,8 @@
         const notification = document.getElementById('broken-image-notification');
         const countElement = document.getElementById('broken-count');
 
-        if (brokenImages.length > 0) {
+        // Only show notification if user hasn't dismissed it permanently
+        if (brokenImages.length > 0 && !brokenImageNotificationDismissed) {
             countElement.textContent = brokenImages.length;
             notification.classList.remove('hidden');
 
@@ -465,6 +467,14 @@
     function clearBrokenImageTracking() {
         brokenImages = [];
         updateBrokenImageNotification();
+    }
+
+    // Function to reset notification dismissal (for development/testing)
+    function resetBrokenImageNotificationDismissal() {
+        brokenImageNotificationDismissed = false;
+        localStorage.removeItem('brokenImageNotificationDismissed');
+        updateBrokenImageNotification();
+        console.log('Broken image notification dismissal reset - notifications will show again');
     }
     const pages = {
         library: document.getElementById('page-library'),
@@ -3468,7 +3478,14 @@
 
     // Broken image notification dismiss
     document.getElementById('dismiss-notification').addEventListener('click', () => {
+        // Hide notification immediately
         document.getElementById('broken-image-notification').classList.add('hidden');
+
+        // Set persistent dismissal flag so it won't show again
+        brokenImageNotificationDismissed = true;
+        localStorage.setItem('brokenImageNotificationDismissed', 'true');
+
+        console.log('Broken image notification dismissed permanently');
     });
 
     fileInput.addEventListener('change', (event) => {
