@@ -298,11 +298,31 @@ app.get('/projects', (req, res) => {
     try {
         const projects = db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
 
-        // Parse image_ids JSON for each project
-        const projectsWithParsedIds = projects.map(project => ({
-            ...project,
-            image_ids: JSON.parse(project.image_ids)
-        }));
+        // Parse image_ids for each project (handle different formats)
+        const projectsWithParsedIds = projects.map(project => {
+            let imageIds = [];
+
+            try {
+                // Try JSON parse first (for format like [1,2,3])
+                if (project.image_ids.startsWith('[') && project.image_ids.endsWith(']')) {
+                    imageIds = JSON.parse(project.image_ids);
+                } else {
+                    // Handle comma-separated format (like "1,2,3" or "NaN,1,2,3")
+                    imageIds = project.image_ids
+                        .split(',')
+                        .map(id => parseInt(id.trim()))
+                        .filter(id => !isNaN(id)); // Remove NaN values
+                }
+            } catch (err) {
+                console.warn(`Failed to parse image_ids for project ${project.id}: ${project.image_ids}`);
+                imageIds = [];
+            }
+
+            return {
+                ...project,
+                image_ids: imageIds
+            };
+        });
 
         res.json(projectsWithParsedIds);
     } catch (err) {
