@@ -114,6 +114,18 @@ body {
   color: #000;
 }
 
+#nav-logout {
+  background: #dc3545 !important;
+  color: #fff !important;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#nav-logout:hover {
+  background: #c82333 !important;
+  color: #fff !important;
+}
+
 .sidebar__footer {
   margin-top: auto;
   padding: 8px;

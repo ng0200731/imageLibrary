@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Image Library — Minimal Shell v2.20.4</title>
-  <link rel="stylesheet" href="styles.css?v=2.20.4&bust=20250910104000" />
+  <title>Image Library — Minimal Shell v2.20.5</title>
+  <link rel="stylesheet" href="styles.css?v=2.20.5&bust=20250910105000" />
 </head>
 <body>
   <div class="app">
@@ -27,7 +27,7 @@
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.20.4</span>
+          <span class="version">v2.20.5</span>
       </div>
 
       <div class="sidebar__footer">
@@ -3474,15 +3474,19 @@
     }
 
     async function logout() {
+        console.log('🚪 Logout function called');
         const sessionToken = localStorage.getItem('sessionToken');
+        console.log('Session token:', sessionToken ? 'exists' : 'not found');
 
         // Call backend logout endpoint to invalidate session
         if (sessionToken) {
             try {
-                await fetch(`${API_URL}/auth/logout`, {
+                console.log('📡 Calling backend logout endpoint...');
+                const response = await fetch(`${API_URL}/auth/logout`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${sessionToken}` }
                 });
+                console.log('Backend logout response:', response.status);
             } catch (error) {
                 console.error('Error calling logout endpoint:', error);
                 // Continue with logout even if backend call fails
@@ -3490,18 +3494,33 @@
         }
 
         // Clear session token
+        console.log('🧹 Clearing session token...');
         localStorage.removeItem('sessionToken');
 
         // Clear current user
         currentUser = null;
+        console.log('👤 Current user cleared');
 
         // Redirect to login page
+        console.log('🔄 Redirecting to login page...');
         window.location.href = '/login.html';
     }
 
     // Make functions globally available
     window.openSettings = openSettings;
     window.logout = logout;
+
+    // Add event listener for logout button as backup
+    document.addEventListener('DOMContentLoaded', function() {
+        const logoutBtn = document.getElementById('nav-logout');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('🚪 Logout button clicked via event listener');
+                logout();
+            });
+        }
+    });
 
     // Share Project Functions
     function showShareProjectModal(project) {
