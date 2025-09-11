@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Image Library — Minimal Shell v2.20.5</title>
-  <link rel="stylesheet" href="styles.css?v=2.20.5&bust=20250910105000" />
+  <title>Image Library — Minimal Shell v2.20.6</title>
+  <link rel="stylesheet" href="styles.css?v=2.20.6&bust=20250910106000" />
 </head>
 <body>
   <div class="app">
@@ -23,15 +23,14 @@
         <a id="nav-project" class="menu__item" href="#">Project</a>
         <a id="nav-tags" class="menu__item" href="#">Tags</a>
         <a id="nav-settings" class="menu__item" href="#" onclick="openSettings()">Settings</a>
-        <a id="nav-logout" class="menu__item" href="#" onclick="logout()">Logout</a>
       </nav>
 
       <div class="version-wrapper">
-          <span class="version">v2.20.5</span>
+          <span class="version">v2.20.6</span>
       </div>
 
       <div class="sidebar__footer">
-        <button class="button button--primary" type="button">Login</button>
+        <button id="nav-logout" class="button button--logout" type="button" onclick="logout()">🚪 Logout</button>
       </div>
     </aside>
 
@@ -3516,7 +3515,7 @@
         if (logoutBtn) {
             logoutBtn.addEventListener('click', function(e) {
                 e.preventDefault();
-                console.log('🚪 Logout button clicked via event listener');
+                console.log('🚪 Logout button clicked via event listener (sidebar footer)');
                 logout();
             });
         }
