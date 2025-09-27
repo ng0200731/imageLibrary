@@ -729,22 +729,25 @@
             });
         });
 
-        // Add headers based on tag creation order (same as groupImagesByTagsAndSort)
+        // Add headers based on current search tags and all input tags
         const currentSearchTags = searchTags.map(tag => tag.text);
 
-        // Get all tags in reverse chronological order (same as groupImagesByTagsAndSort)
-        const allInputTags = Object.keys(tagCreationOrder).sort((a, b) => {
-            const timestampA = tagCreationOrder[a] || 0;
-            const timestampB = tagCreationOrder[b] || 0;
-            return timestampB - timestampA; // Latest tag first
-        });
+        // In pool view, show ALL search tags (green chips) that are currently active
+        // In library view with search, show only matching tags
+        const tagsToShow = isPoolView ? currentSearchTags :
+                          currentSearchTags.length > 0 ? currentSearchTags :
+                          Object.keys(tagCreationOrder).sort((a, b) => {
+                              const timestampA = tagCreationOrder[a] || 0;
+                              const timestampB = tagCreationOrder[b] || 0;
+                              return timestampB - timestampA; // Latest tag first
+                          });
 
         // Create a container for tag headers (button-style)
         const tagHeaderContainer = document.createElement('div');
         tagHeaderContainer.className = 'tag-headers-container';
 
-        // Add headers for each tag that has images, in the same order as display
-        allInputTags.forEach(tag => {
+        // Add headers for each tag that has images, showing all current search tags in pool view
+        tagsToShow.forEach(tag => {
             const imagesWithThisTag = images.filter(image => {
                 const imageTags = image.tags || [];
                 return imageTags.includes(tag);
@@ -1016,22 +1019,10 @@
                 console.log('Setting title to Selection Pool (isPoolView=true)');
                 updateLibraryTitle(true); // Selection Pool (explicit pool view)
             } else if (currentSearchTags.length > 0 && !forceLibraryView) {
-                console.log('Auto-switching to Selection Pool due to search tags');
+                console.log('Showing filtered library view with search tags (no auto-switch to pool)');
                 console.log('currentSearchTags:', currentSearchTags);
-                isPoolView = true; // Auto-switch to pool view when tags are active
-                updateLibraryTitle(true); // Filtered view (acts like Selection Pool)
-                console.log('FORCED isPoolView to true due to search tags');
-
-                // Additional fix: Ensure the title was actually updated
-                setTimeout(() => {
-                    if (isPoolView && currentSearchTags.length > 0) {
-                        const titleElement = document.querySelector('#page-library .title');
-                        if (titleElement && !titleElement.textContent.includes('Selection Pool')) {
-                            console.log('Title update failed, forcing update...');
-                            titleElement.textContent = 'Image Library (Selection Pool)';
-                        }
-                    }
-                }, 10);
+                updateLibraryTitle(false); // Keep library title, just show filtered results
+                console.log('Staying in library view with tag filters applied');
             } else if (currentSearchTags.length > 0 && forceLibraryView) {
                 console.log('STAYING in Library view despite search tags (user requested)');
                 console.log('currentSearchTags:', currentSearchTags);
@@ -2280,13 +2271,10 @@
             updateLibraryTitle(false);
             console.log('Title updated to Library view');
 
-            // Clear search tags but PRESERVE all selections when going back to library
-            // Users should see all their selected images still selected in library view
+            // PRESERVE search tags and selections when going back to library
+            // Users should see all their search tags still visible and functional
             if (searchTags.length > 0) {
-                console.log('Clearing search tags but preserving selections');
-                searchTags = [];
-                librarySearchChips.innerHTML = '';
-                librarySearchInput.value = '';
+                console.log('Preserving search tags and all selections in library view');
 
                 // Merge tag-selected images into selectedImages to preserve all selections
                 const allSelectedImages = [...new Set([...selectedImages, ...tagSelectedImages])];
@@ -2299,10 +2287,8 @@
                     }
                 });
 
-                // Clear tagSelectedImages since they're now in selectedImages
-                tagSelectedImages = [];
-
-                console.log('Search tags cleared, selections preserved:', selectedImages.length);
+                // Keep tagSelectedImages as they are for proper display in library view
+                console.log('Search tags and selections preserved:', selectedImages.length, 'tags:', searchTags.length);
             }
 
             // Refresh library view (will show all images with preserved selections)
