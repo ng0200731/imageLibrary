@@ -2280,11 +2280,32 @@
             updateLibraryTitle(false);
             console.log('Title updated to Library view');
 
-            // Don't clear search tags - preserve them
-            // Don't clear tagSelectedImages - preserve tag selection status
-            // Tags should only be removed when user explicitly removes them
+            // Clear search tags but PRESERVE all selections when going back to library
+            // Users should see all their selected images still selected in library view
+            if (searchTags.length > 0) {
+                console.log('Clearing search tags but preserving selections');
+                searchTags = [];
+                librarySearchChips.innerHTML = '';
+                librarySearchInput.value = '';
 
-            // Refresh library view (will show tag-filtered + manual selections)
+                // Merge tag-selected images into selectedImages to preserve all selections
+                const allSelectedImages = [...new Set([...selectedImages, ...tagSelectedImages])];
+                selectedImages = allSelectedImages;
+
+                // Update selection source for merged images
+                tagSelectedImages.forEach(imageId => {
+                    if (!imageSelectionSource[imageId]) {
+                        imageSelectionSource[imageId] = 'tag-merged';
+                    }
+                });
+
+                // Clear tagSelectedImages since they're now in selectedImages
+                tagSelectedImages = [];
+
+                console.log('Search tags cleared, selections preserved:', selectedImages.length);
+            }
+
+            // Refresh library view (will show all images with preserved selections)
             console.log('Calling displayLibraryImages...');
             displayLibraryImages().then(() => {
                 console.log('displayLibraryImages completed successfully');
