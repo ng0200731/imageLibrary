@@ -437,6 +437,24 @@
         </div>
       </div>
 
+      <!-- Tag Removal Confirmation Modal -->
+      <div id="tag-removal-confirm-modal" class="modal-overlay is-hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Remove Tag from Selection Pool</h2>
+            <button id="tag-removal-confirm-close" class="modal-close-btn">✕</button>
+          </div>
+          <div class="modal-body">
+            <p>Do you want to remove all images with the "<span id="tag-removal-tag-name"></span>" tag from the selection pool?</p>
+            <p class="warning-text">This will remove <span id="tag-removal-image-count">0</span> image(s) from your current selection.</p>
+          </div>
+          <div class="modal-footer">
+            <button id="tag-removal-cancel-btn" class="button">No, Keep Images</button>
+            <button id="tag-removal-confirm-btn" class="button button--danger">Yes, Remove Images</button>
+          </div>
+        </div>
+      </div>
+
   <script>
     // --- Constants & State ---
     const API_URL = 'http://localhost:3000';
@@ -602,6 +620,14 @@
     const tagRemovalNotificationModal = document.getElementById('tag-removal-notification-modal');
     const tagRemovalMessage = document.getElementById('tag-removal-message');
     const tagRemovalContinueBtn = document.getElementById('tag-removal-continue-btn');
+
+    // Tag removal confirmation modal elements
+    const tagRemovalConfirmModal = document.getElementById('tag-removal-confirm-modal');
+    const tagRemovalConfirmClose = document.getElementById('tag-removal-confirm-close');
+    const tagRemovalTagName = document.getElementById('tag-removal-tag-name');
+    const tagRemovalImageCount = document.getElementById('tag-removal-image-count');
+    const tagRemovalCancelBtn = document.getElementById('tag-removal-cancel-btn');
+    const tagRemovalConfirmBtn = document.getElementById('tag-removal-confirm-btn');
 
     // Image preview overlay elements
     const imagePreviewOverlay = document.getElementById('image-preview-overlay');
@@ -1573,59 +1599,10 @@
         deleteBtn.textContent = '×';
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            
-            // DIRECT FIX: Prevent any view changes when in pool view
-            if (isPoolView) {
-                // Remove from searchTags array
-                searchTags = searchTags.filter(tag => tag.text !== tagText);
-                
-                // Remove from tagCreationOrder
-                delete tagCreationOrder[tagText];
-                saveTagCreationOrder();
-                
-                // Find and remove images with this tag
-                const imagesToRemove = [];
-                selectedImages.forEach(imageId => {
-                    const image = libraryImages.find(img => img.id === imageId);
-                    if (image && image.tags && image.tags.includes(tagText)) {
-                        imagesToRemove.push(imageId);
-                    }
-                });
-                
-                selectedImages = selectedImages.filter(id => !imagesToRemove.includes(id));
-                tagSelectedImages = tagSelectedImages.filter(id => !imagesToRemove.includes(id));
 
-                // Clean up imageSelectionSource
-                imagesToRemove.forEach(imageId => {
-                    delete imageSelectionSource[imageId];
-                });
-                
-                // Remove chip from DOM
-                const chips = librarySearchChips.querySelectorAll('.search-chip');
-                chips.forEach(chip => {
-                    // Extract tag name from "tagname (count)" format
-                    const chipText = chip.textContent.replace(/[×x]$/, '').trim();
-                    const tagName = chipText.replace(/\s*\(\d+\)$/, '');
-                    if (tagName === tagText) {
-                        chip.remove();
-                    }
-                });
-                
-                // Update search input WITHOUT triggering events
-                librarySearchInput.value = searchTags.map(tag => tag.text).join(', ');
-                
-                // FORCE stay in pool view - lock the flag
-                isPoolView = true;
-                
-                // Manually refresh pool view display
-                displayLibraryImages();
-                
-                // FORCE the title after display
-                setTimeout(() => {
-                    updateLibraryTitle(true);
-                    isPoolView = true; // Double ensure
-                }, 10);
-                
+            // Check if we're showing Selection Pool (either pool view or search with selections) - show confirmation
+            if (isShowingSelectionPool()) {
+                showTagRemovalConfirmation(tagText);
             } else {
                 removeSearchTagChip(tagText);
             }
@@ -3768,6 +3745,46 @@
         tagRemovalNotificationModal.classList.add('is-hidden');
     }
 
+    // Tag Removal Confirmation Functions
+    function showTagRemovalConfirmation(tagText) {
+        // Count how many images have this tag from both selected and tag-selected images
+        const imagesWithTag = [];
+        const allSelectedImages = [...new Set([...selectedImages, ...tagSelectedImages])];
+
+        allSelectedImages.forEach(imageId => {
+            const image = libraryImages.find(img => img.id === imageId);
+            if (image && image.tags && image.tags.includes(tagText)) {
+                imagesWithTag.push(imageId);
+            }
+        });
+
+        // Update modal content
+        tagRemovalTagName.textContent = tagText;
+        tagRemovalImageCount.textContent = imagesWithTag.length;
+
+        // Store tag for removal action
+        tagRemovalConfirmModal.dataset.tagToRemove = tagText;
+
+        // Show modal
+        tagRemovalConfirmModal.classList.remove('is-hidden');
+    }
+
+    function hideTagRemovalConfirmModal() {
+        tagRemovalConfirmModal.classList.add('is-hidden');
+        delete tagRemovalConfirmModal.dataset.tagToRemove;
+    }
+
+    function confirmTagRemoval() {
+        const tagToRemove = tagRemovalConfirmModal.dataset.tagToRemove;
+        if (tagToRemove) {
+            // Hide confirmation modal first
+            hideTagRemovalConfirmModal();
+
+            // Remove the tag using pool view function to stay in pool
+            removeSearchTagChipInPoolView(tagToRemove);
+        }
+    }
+
     async function saveTagUpdates() {
         console.log('Saving tag updates...');
         console.log('Selected images:', selectedImages);
@@ -4097,8 +4114,12 @@
 
     // Add keyboard support for Escape key
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !modal.classList.contains('is-hidden')) {
-            hideModal();
+        if (e.key === 'Escape') {
+            if (!modal.classList.contains('is-hidden')) {
+                hideModal();
+            } else if (!tagRemovalConfirmModal.classList.contains('is-hidden')) {
+                hideTagRemovalConfirmModal();
+            }
         }
     });
 
@@ -4472,6 +4493,11 @@
     deleteImageClose.addEventListener('click', hideDeleteImageModal);
     cancelDeleteBtn.addEventListener('click', hideDeleteImageModal);
     confirmDeleteBtn.addEventListener('click', deleteSelectedImages);
+
+    // Tag removal confirmation modal event listeners
+    tagRemovalConfirmClose.addEventListener('click', hideTagRemovalConfirmModal);
+    tagRemovalCancelBtn.addEventListener('click', hideTagRemovalConfirmModal);
+    tagRemovalConfirmBtn.addEventListener('click', confirmTagRemoval);
 
     // Add tag input enter key support
     newTagInput.addEventListener('keydown', (e) => {
