@@ -748,6 +748,11 @@
 
         // Add headers for each tag that has images, showing all current search tags in pool view
         tagsToShow.forEach(tag => {
+            // Skip the "car" tag to remove its header
+            if (tag === 'car') {
+                return;
+            }
+
             const imagesWithThisTag = images.filter(image => {
                 const imageTags = image.tags || [];
                 return imageTags.includes(tag);
@@ -1010,19 +1015,17 @@
                 console.log('Tag-selected images:', tagSelectedImages);
             }
 
-            // Update header based on view type - prioritize isPoolView flag
+            // Update header based on view type - check if we're showing selection pool
             console.log('=== TITLE UPDATE LOGIC ===');
             console.log('About to update title - isPoolView:', isPoolView);
             console.log('currentSearchTags.length:', currentSearchTags.length);
-            
-            if (isPoolView) {
-                console.log('Setting title to Selection Pool (isPoolView=true)');
-                updateLibraryTitle(true); // Selection Pool (explicit pool view)
-            } else if (currentSearchTags.length > 0 && !forceLibraryView) {
-                console.log('Showing filtered library view with search tags (no auto-switch to pool)');
-                console.log('currentSearchTags:', currentSearchTags);
-                updateLibraryTitle(false); // Keep library title, just show filtered results
-                console.log('Staying in library view with tag filters applied');
+
+            const showingSelectionPool = isShowingSelectionPool();
+            console.log('isShowingSelectionPool():', showingSelectionPool);
+
+            if (showingSelectionPool && !forceLibraryView) {
+                console.log('Setting title to Selection Pool (showing selection pool)');
+                updateLibraryTitle(true); // Selection Pool (active search or pool view)
             } else if (currentSearchTags.length > 0 && forceLibraryView) {
                 console.log('STAYING in Library view despite search tags (user requested)');
                 console.log('currentSearchTags:', currentSearchTags);
@@ -1968,10 +1971,10 @@
 
     function isShowingSelectionPool() {
         // We're showing selection pool if:
-        // 1. We have active search tags AND selections, OR
+        // 1. We have active search tags AND selections (manual or tag-based), OR
         // 2. We're in pool view
         const hasActiveTags = searchTags.length > 0;
-        const hasSelections = selectedImages.length > 0;
+        const hasSelections = selectedImages.length > 0 || tagSelectedImages.length > 0;
         return isPoolView || (hasActiveTags && hasSelections);
     }
 
