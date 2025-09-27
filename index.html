@@ -1021,6 +1021,17 @@
                 isPoolView = true; // Auto-switch to pool view when tags are active
                 updateLibraryTitle(true); // Filtered view (acts like Selection Pool)
                 console.log('FORCED isPoolView to true due to search tags');
+
+                // Additional fix: Ensure the title was actually updated
+                setTimeout(() => {
+                    if (isPoolView && currentSearchTags.length > 0) {
+                        const titleElement = document.querySelector('#page-library .title');
+                        if (titleElement && !titleElement.textContent.includes('Selection Pool')) {
+                            console.log('Title update failed, forcing update...');
+                            titleElement.textContent = 'Image Library (Selection Pool)';
+                        }
+                    }
+                }, 10);
             } else if (currentSearchTags.length > 0 && forceLibraryView) {
                 console.log('STAYING in Library view despite search tags (user requested)');
                 console.log('currentSearchTags:', currentSearchTags);
@@ -1527,6 +1538,11 @@
 
         // Check if tag already exists
         if (searchTags.some(tag => tag.text === text)) return;
+
+        // Reset forceLibraryView when user actively adds new tags
+        // This allows auto-switching to Selection Pool after "Back to Library"
+        forceLibraryView = false;
+        console.log('Reset forceLibraryView to false when adding new tag:', text);
 
         // Track tag input timestamp for ordering (most recent input first)
         const currentTimestamp = Date.now();
