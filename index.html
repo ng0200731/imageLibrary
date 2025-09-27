@@ -455,6 +455,24 @@
         </div>
       </div>
 
+      <!-- Clear All Confirmation Modal -->
+      <div id="clear-all-confirm-modal" class="modal-overlay is-hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Clear All Selections</h2>
+            <button id="clear-all-confirm-close" class="modal-close-btn">✕</button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to clear all selections and search filters?</p>
+            <p class="warning-text">This will remove <span id="clear-all-selection-count">0</span> selected image(s) and <span id="clear-all-tag-count">0</span> search tag(s).</p>
+          </div>
+          <div class="modal-footer">
+            <button id="clear-all-cancel-btn" class="button">Cancel</button>
+            <button id="clear-all-confirm-btn" class="button button--danger">Clear All</button>
+          </div>
+        </div>
+      </div>
+
   <script>
     // --- Constants & State ---
     const API_URL = 'http://localhost:3000';
@@ -628,6 +646,14 @@
     const tagRemovalImageCount = document.getElementById('tag-removal-image-count');
     const tagRemovalCancelBtn = document.getElementById('tag-removal-cancel-btn');
     const tagRemovalConfirmBtn = document.getElementById('tag-removal-confirm-btn');
+
+    // Clear all confirmation modal elements
+    const clearAllConfirmModal = document.getElementById('clear-all-confirm-modal');
+    const clearAllConfirmClose = document.getElementById('clear-all-confirm-close');
+    const clearAllSelectionCount = document.getElementById('clear-all-selection-count');
+    const clearAllTagCount = document.getElementById('clear-all-tag-count');
+    const clearAllCancelBtn = document.getElementById('clear-all-cancel-btn');
+    const clearAllConfirmBtn = document.getElementById('clear-all-confirm-btn');
 
     // Image preview overlay elements
     const imagePreviewOverlay = document.getElementById('image-preview-overlay');
@@ -1049,7 +1075,11 @@
             const showingSelectionPool = isShowingSelectionPool();
             console.log('isShowingSelectionPool():', showingSelectionPool);
 
-            if (showingSelectionPool && !forceLibraryView) {
+            if (isPoolView) {
+                // Always show Selection Pool title when explicitly in pool view
+                console.log('Setting title to Selection Pool (explicit pool view)');
+                updateLibraryTitle(true);
+            } else if (showingSelectionPool && !forceLibraryView) {
                 console.log('Setting title to Selection Pool (showing selection pool)');
                 updateLibraryTitle(true); // Selection Pool (active search or pool view)
             } else if (currentSearchTags.length > 0 && forceLibraryView) {
@@ -1281,6 +1311,7 @@
                     selectedImages = [];
                 }
                 updateButtonVisibility(); // Ensure buttons are correct even when no selections
+                updateClearButtonState(); // Ensure Clear All button is disabled when no selections
             }
 
             console.log('displayLibraryImages completed, selectedImages at end:', selectedImages);
@@ -1826,8 +1857,20 @@
     }
 
     function updateClearButtonState() {
-        // Enable "Clear All" button if there are search tags OR selected images
-        clearAllTagsBtn.disabled = searchTags.length === 0 && selectedImages.length === 0;
+        // Simple: disable button when 0 selected images
+        const totalSelections = [...new Set([...selectedImages, ...tagSelectedImages])].length;
+
+        if (totalSelections === 0) {
+            clearAllTagsBtn.disabled = true;
+            clearAllTagsBtn.style.opacity = '0.5';
+            clearAllTagsBtn.style.cursor = 'not-allowed';
+            clearAllTagsBtn.style.backgroundColor = '#ccc';
+        } else {
+            clearAllTagsBtn.disabled = false;
+            clearAllTagsBtn.style.opacity = '1';
+            clearAllTagsBtn.style.cursor = 'pointer';
+            clearAllTagsBtn.style.backgroundColor = '';
+        }
     }
 
     function initializeFreshSearchInput() {
@@ -3785,6 +3828,33 @@
         }
     }
 
+    // Clear All Confirmation Functions
+    function showClearAllConfirmation() {
+        // Count current selections and tags
+        const totalSelections = selectedImages.length + tagSelectedImages.length;
+        const uniqueSelections = [...new Set([...selectedImages, ...tagSelectedImages])].length;
+        const totalTags = searchTags.length;
+
+        // Update modal content
+        clearAllSelectionCount.textContent = uniqueSelections;
+        clearAllTagCount.textContent = totalTags;
+
+        // Show modal
+        clearAllConfirmModal.classList.remove('is-hidden');
+    }
+
+    function hideClearAllConfirmModal() {
+        clearAllConfirmModal.classList.add('is-hidden');
+    }
+
+    function confirmClearAll() {
+        // Hide confirmation modal first
+        hideClearAllConfirmModal();
+
+        // Execute the clear all action
+        clearAllSearchChips();
+    }
+
     async function saveTagUpdates() {
         console.log('Saving tag updates...');
         console.log('Selected images:', selectedImages);
@@ -4119,6 +4189,8 @@
                 hideModal();
             } else if (!tagRemovalConfirmModal.classList.contains('is-hidden')) {
                 hideTagRemovalConfirmModal();
+            } else if (!clearAllConfirmModal.classList.contains('is-hidden')) {
+                hideClearAllConfirmModal();
             }
         }
     });
@@ -4334,7 +4406,7 @@
 
     // Clear all button (clears both tags and selected images)
     clearAllTagsBtn.addEventListener('click', () => {
-        clearAllSearchChips();
+        showClearAllConfirmation();
     });
 
     // Initialize button state
@@ -4498,6 +4570,11 @@
     tagRemovalConfirmClose.addEventListener('click', hideTagRemovalConfirmModal);
     tagRemovalCancelBtn.addEventListener('click', hideTagRemovalConfirmModal);
     tagRemovalConfirmBtn.addEventListener('click', confirmTagRemoval);
+
+    // Clear all confirmation modal event listeners
+    clearAllConfirmClose.addEventListener('click', hideClearAllConfirmModal);
+    clearAllCancelBtn.addEventListener('click', hideClearAllConfirmModal);
+    clearAllConfirmBtn.addEventListener('click', confirmClearAll);
 
     // Add tag input enter key support
     newTagInput.addEventListener('keydown', (e) => {
