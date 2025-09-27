@@ -699,6 +699,7 @@
         console.log('Input images:', images.map(img => `${img.id}: [${img.tags?.join(',') || 'untagged'}] uploaded: ${img.uploadTime}`));
         console.log('Tag creation order:', tagCreationOrder);
 
+
         // Create groups by tag in reverse chronological order (latest tag first)
         const result = [];
 
@@ -757,10 +758,33 @@
             }
         });
 
+        // Add ALL tag-selected images that haven't been added yet
+        const tagSelectedOnlyImages = images.filter(image => {
+            const isTagSelected = tagSelectedImages.includes(image.id);
+            return isTagSelected && !addedImageIds.has(image.id);
+        });
+
+        tagSelectedOnlyImages.forEach(image => {
+            if (!addedImageIds.has(image.id)) {
+                result.push(image);
+                addedImageIds.add(image.id);
+            }
+        });
+
         console.log('Final sequence (with untagged manual selections):', result.map(img =>
             `${img.id}: [${img.tags?.join(',') || 'untagged'}] uploaded: ${img.uploadTime}`
         ));
         console.log('=== groupImagesByTagsAndSort END ===');
+
+        // Show missing images in alert
+        const missingImages = images.filter(img => !result.find(r => r.id === img.id));
+        if (missingImages.length > 0) {
+            alert('MISSING IMAGES FOUND:\n' +
+                  'Input: ' + images.length + ' images\n' +
+                  'Output: ' + result.length + ' images\n' +
+                  'Missing IDs: ' + missingImages.map(img => img.id).join(', ') + '\n' +
+                  'Missing tags: ' + JSON.stringify(missingImages.map(img => ({id: img.id, tags: img.tags})), null, 2));
+        }
 
         return result;
     }
@@ -902,6 +926,7 @@
             // Get all images first
             const allImagesResponse = await fetch(`${API_URL}/images`);
             const allImages = await allImagesResponse.json();
+
 
             let imagesToDisplay = [];
 
@@ -1158,7 +1183,18 @@
             // Wait for all image load tests to complete
             const imageResults = await Promise.all(imagePromises);
 
-            // Only display images that loaded successfully
+            // Add ALL images to libraryImages (including broken ones) to preserve selections
+            imageResults.forEach(({ image, index, imageSrc, loaded }) => {
+                libraryImages.push({
+                    src: imageSrc,
+                    index: index,
+                    tags: image.tags || [],
+                    id: image.id,
+                    loaded: loaded
+                });
+            });
+
+            // Only display images that loaded successfully in the UI
             imageResults.filter(result => result.loaded).forEach(({ image, index, imageSrc }) => {
                 const card = document.createElement('div');
                 card.className = 'preview-card library-card';
@@ -1166,14 +1202,6 @@
 
                 const img = document.createElement('img');
                 img.src = imageSrc;
-
-                // Store image data for lightbox navigation
-                libraryImages.push({
-                    src: imageSrc,
-                    index: index,
-                    tags: image.tags || [],
-                    id: image.id
-                });
 
                 // Add click event listener based on view mode
                 img.addEventListener('click', (e) => {
@@ -3628,7 +3656,9 @@
 
     function populateOriginalTagsList(tags) {
         originalTagsList.innerHTML = '';
-        const showRemoveButtons = selectedImages.length === 1; // Only show X for single image
+
+        // Determine which tags are common to ALL selected images
+        const commonTags = getCommonTagsFromSelectedImages();
 
         tags.forEach(tag => {
             const tagElement = document.createElement('div');
@@ -3638,7 +3668,9 @@
             tagText.textContent = tag;
             tagElement.appendChild(tagText);
 
-            if (showRemoveButtons) {
+            // Show X button if this tag is common to ALL selected images
+            const isCommonTag = commonTags.includes(tag);
+            if (isCommonTag) {
                 const removeBtn = document.createElement('button');
                 removeBtn.className = 'tag-remove-btn';
                 removeBtn.textContent = '✕';
@@ -3648,6 +3680,27 @@
 
             originalTagsList.appendChild(tagElement);
         });
+    }
+
+    function getCommonTagsFromSelectedImages() {
+        if (selectedImages.length === 0) return [];
+
+        // Get tags from first image
+        const firstImage = libraryImages.find(img => img.id === selectedImages[0]);
+        if (!firstImage || !firstImage.tags) return [];
+
+        let commonTags = [...firstImage.tags];
+
+        // For each subsequent image, keep only tags that are also in that image
+        for (let i = 1; i < selectedImages.length; i++) {
+            const image = libraryImages.find(img => img.id === selectedImages[i]);
+            if (!image || !image.tags) {
+                return []; // If any image has no tags, no tags are common
+            }
+            commonTags = commonTags.filter(tag => image.tags.includes(tag));
+        }
+
+        return commonTags;
     }
 
     function hideUpdateTagModal() {
@@ -3672,16 +3725,25 @@
     }
 
     function removeIndividualTag(tag) {
-        console.log('Marking tag for removal:', tag);
-        tagsToRemove.add(tag);
-
-        // Visual feedback - dim the tag
         const tagElements = originalTagsList.querySelectorAll('.tag-item-removable');
-        tagElements.forEach(element => {
-            if (element.querySelector('span').textContent === tag) {
-                element.classList.add('marked-for-removal');
-            }
-        });
+        const tagElement = Array.from(tagElements).find(element =>
+            element.querySelector('span').textContent === tag
+        );
+
+        if (!tagElement) return;
+
+        // Toggle removal state
+        if (tagsToRemove.has(tag)) {
+            // Currently marked for removal - undo it
+            console.log('Unmarking tag for removal:', tag);
+            tagsToRemove.delete(tag);
+            tagElement.classList.remove('marked-for-removal');
+        } else {
+            // Not marked for removal - mark it
+            console.log('Marking tag for removal:', tag);
+            tagsToRemove.add(tag);
+            tagElement.classList.add('marked-for-removal');
+        }
     }
 
     function removeAllTagsFromSelected() {
@@ -3855,9 +3917,11 @@
         clearAllSearchChips();
     }
 
+
     async function saveTagUpdates() {
-        console.log('Saving tag updates...');
+        console.log('=== SAVE TAG UPDATES START ===');
         console.log('Selected images:', selectedImages);
+        console.log('Selected images count:', selectedImages.length);
         console.log('Tags to remove:', Array.from(tagsToRemove));
         console.log('Remove all tags:', removeAllTags);
         console.log('Tags to add:', Array.from(tagsToAdd));
@@ -3870,38 +3934,80 @@
         }
 
         try {
+            let successCount = 0;
+            let errorCount = 0;
+            const updateResults = [];
+
             // Process each selected image
             for (const imageId of selectedImages) {
-                const image = libraryImages.find(img => img.id === imageId);
-                if (!image) continue;
-
-                let currentTags = image.tags ? [...image.tags] : [];
-
-                // Handle tag removal
-                if (removeAllTags) {
-                    currentTags = [];
-                } else {
-                    // Remove individual tags
-                    tagsToRemove.forEach(tagToRemove => {
-                        currentTags = currentTags.filter(tag => tag !== tagToRemove);
-                    });
-                }
-
-                // Add new tags
-                tagsToAdd.forEach(tagToAdd => {
-                    if (!currentTags.includes(tagToAdd)) {
-                        currentTags.push(tagToAdd);
+                try {
+                    console.log(`--- Processing image ${imageId} ---`);
+                    const image = libraryImages.find(img => img.id === imageId);
+                    if (!image) {
+                        console.warn(`Image ${imageId} not found in libraryImages`);
+                        continue;
                     }
-                });
 
-                // Update the image in backend
-                await updateImageTags(imageId, currentTags);
+                    const originalTags = image.tags ? [...image.tags] : [];
+                    console.log(`Original tags for image ${imageId}:`, originalTags);
 
-                // Update local image object
-                image.tags = currentTags;
+                    let currentTags = [...originalTags];
+
+                    // Handle tag removal
+                    if (removeAllTags) {
+                        currentTags = [];
+                        console.log(`Removing all tags from image ${imageId}`);
+                    } else {
+                        // Remove individual tags
+                        tagsToRemove.forEach(tagToRemove => {
+                            const beforeLength = currentTags.length;
+                            currentTags = currentTags.filter(tag => tag !== tagToRemove);
+                            const afterLength = currentTags.length;
+                            if (beforeLength !== afterLength) {
+                                console.log(`Removed tag "${tagToRemove}" from image ${imageId}`);
+                            }
+                        });
+                    }
+
+                    // Add new tags
+                    tagsToAdd.forEach(tagToAdd => {
+                        if (!currentTags.includes(tagToAdd)) {
+                            currentTags.push(tagToAdd);
+                            console.log(`Added tag "${tagToAdd}" to image ${imageId}`);
+                        }
+                    });
+
+                    console.log(`Final tags for image ${imageId}:`, currentTags);
+
+                    // Update the image in backend
+                    await updateImageTags(imageId, currentTags);
+
+                    // Update local image object
+                    image.tags = currentTags;
+
+                    successCount++;
+                    updateResults.push({ imageId, status: 'success', tags: currentTags });
+                    console.log(`✓ Successfully updated image ${imageId}`);
+
+                } catch (imageError) {
+                    errorCount++;
+                    updateResults.push({ imageId, status: 'error', error: imageError.message });
+                    console.error(`✗ Failed to update image ${imageId}:`, imageError);
+                }
             }
 
-            console.log('Tag updates completed successfully');
+            console.log('=== UPDATE SUMMARY ===');
+            console.log(`Total images processed: ${selectedImages.length}`);
+            console.log(`Successful updates: ${successCount}`);
+            console.log(`Failed updates: ${errorCount}`);
+            console.log('Update results:', updateResults);
+
+            if (errorCount > 0) {
+                console.warn(`${errorCount} images failed to update. Check the logs above for details.`);
+                alert(`Warning: ${errorCount} out of ${selectedImages.length} images failed to update. Check the browser console for details.`);
+            }
+
+            console.log('Tag updates completed. Refreshing display...');
 
             // Refresh the library display
             await displayLibraryImages();
@@ -3912,8 +4018,10 @@
             // Show success modal
             showTagUpdateSuccess();
 
+            console.log('=== SAVE TAG UPDATES END ===');
+
         } catch (error) {
-            console.error('Error saving tag updates:', error);
+            console.error('Critical error during tag updates:', error);
             alert('Failed to update tags. Please try again.');
         }
     }
