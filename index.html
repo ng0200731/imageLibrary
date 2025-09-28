@@ -1236,7 +1236,7 @@
                 // Add eye icon for image preview (both library view and pool view)
                 const eyeIcon = document.createElement('div');
                 eyeIcon.className = 'image-preview-eye';
-                eyeIcon.textContent = '🔍';
+                eyeIcon.textContent = '1:1';
                 eyeIcon.title = 'Preview full size image';
 
                 eyeIcon.addEventListener('click', (e) => {
@@ -1292,35 +1292,28 @@
 
 
 
-                if (isPoolView) {
-                    // In pool view, all displayed images are selected and locked
-                    card.classList.add('selected', 'pool-view');
+                // Handle selection logic (same for both pool view and library view)
+                if (wasAlreadySelected || hasMatchingTags) {
+                    card.classList.add('selected');
+
+                    // Add pool-view class if in pool view for styling
+                    if (isPoolView) {
+                        card.classList.add('pool-view');
+                    }
 
                     // Add visual indicator for selection type - prioritize tag selection
+                    // Key fix: Check isTagSelected FIRST, regardless of current search tags
                     if (isTagSelected) {
+                        card.classList.add('tag-selection');
+                    } else if (hasMatchingTags) {
                         card.classList.add('tag-selection');
                     } else if (wasAlreadySelected) {
                         card.classList.add('manual-selection');
                     }
-                } else {
-                    // In library view, handle normal selection logic
-                    if (wasAlreadySelected || hasMatchingTags) {
-                        card.classList.add('selected');
 
-                        // Add visual indicator for selection type - prioritize tag selection
-                        // Key fix: Check isTagSelected FIRST, regardless of current search tags
-                        if (isTagSelected) {
-                            card.classList.add('tag-selection');
-                        } else if (hasMatchingTags) {
-                            card.classList.add('tag-selection');
-                        } else if (wasAlreadySelected) {
-                            card.classList.add('manual-selection');
-                        }
-
-                        // Only add to selectedImages if not already there
-                        if (!wasAlreadySelected) {
-                            selectedImages.push(image.id);
-                        }
+                    // Only add to selectedImages if not already there
+                    if (!wasAlreadySelected) {
+                        selectedImages.push(image.id);
                     }
                 }
 
