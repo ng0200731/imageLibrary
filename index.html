@@ -1213,15 +1213,6 @@
                     toggleImageSelection(image.id, card);
                 });
 
-                // Add double-click handler for lightbox in pool view
-                if (isPoolView) {
-                    img.addEventListener('dblclick', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Image double-clicked, opening lightbox for index:', index);
-                        openLibraryLightbox(index);
-                    });
-                }
 
                 // Add cursor pointer style - always clickable in pool view
                 img.style.cursor = 'pointer';
@@ -1261,6 +1252,23 @@
                 });
 
                 card.appendChild(eyeIcon);
+
+                // Add booklet icon for lightbox preview (only in Selection Pool view)
+                if (isPoolView) {
+                    const bookletIcon = document.createElement('div');
+                    bookletIcon.className = 'image-preview-booklet';
+                    bookletIcon.textContent = '📖';
+                    bookletIcon.title = 'Open lightbox with navigation';
+
+                    bookletIcon.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Booklet clicked, opening lightbox for index:', index);
+                        openLibraryLightbox(index);
+                    });
+
+                    card.appendChild(bookletIcon);
+                }
 
                 // Add tag overlay - show tags on ALL images
                 const matchingTags = getMatchingTags(image.tags || [], currentSearchTags);
