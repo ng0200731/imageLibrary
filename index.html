@@ -308,6 +308,7 @@
               <div class="project-stats-row">
                 <span id="project-detail-date">📅 Created: 2024-01-15</span>
                 <span id="project-detail-count">📊 Total Images: 12</span>
+                <span id="project-detail-owner" style="display: none;">👤 Created by: </span>
               </div>
               <div class="project-tags-row">
                 <span id="project-detail-tags">🏷️ Tags: beach, sunset, family</span>
@@ -602,6 +603,7 @@
     const projectDetailName = document.getElementById('project-detail-name');
     const projectDetailDate = document.getElementById('project-detail-date');
     const projectDetailCount = document.getElementById('project-detail-count');
+    const projectDetailOwner = document.getElementById('project-detail-owner');
     const projectDetailTags = document.getElementById('project-detail-tags');
     const projectDetailGrid = document.getElementById('project-detail-grid');
 
@@ -924,7 +926,14 @@
             clearBrokenImageTracking();
 
             // Get all images first
-            const allImagesResponse = await fetch(`${API_URL}/images`);
+            const sessionToken = localStorage.getItem('sessionToken');
+            const headers = {};
+            if (sessionToken) {
+                headers['Authorization'] = `Bearer ${sessionToken}`;
+            }
+            const allImagesResponse = await fetch(`${API_URL}/images`, {
+                headers: headers
+            });
             const allImages = await allImagesResponse.json();
 
 
@@ -955,7 +964,14 @@
 
                 // First, process the search tags to get tag-matching images
                 console.log('Fetching tag-matching images for tags:', currentSearchTags);
-                const tagResponse = await fetch(`${API_URL}/images?tags=${currentSearchTags.join(',')}&mode=${searchMode}`);
+                const sessionToken = localStorage.getItem('sessionToken');
+                const headers = {};
+                if (sessionToken) {
+                    headers['Authorization'] = `Bearer ${sessionToken}`;
+                }
+                const tagResponse = await fetch(`${API_URL}/images?tags=${currentSearchTags.join(',')}&mode=${searchMode}`, {
+                    headers: headers
+                });
 
                 if (!tagResponse.ok) {
                     throw new Error(`Tag search failed: ${tagResponse.status} ${tagResponse.statusText}`);
@@ -1018,7 +1034,14 @@
             } else {
                 // Library view with search tags - show tag-matching + manually selected images
                 console.log('Fetching tag-matching images for tags:', currentSearchTags);
-                const tagResponse = await fetch(`${API_URL}/images?tags=${currentSearchTags.join(',')}&mode=${searchMode}`);
+                const sessionToken2 = localStorage.getItem('sessionToken');
+                const headers2 = {};
+                if (sessionToken2) {
+                    headers2['Authorization'] = `Bearer ${sessionToken2}`;
+                }
+                const tagResponse = await fetch(`${API_URL}/images?tags=${currentSearchTags.join(',')}&mode=${searchMode}`, {
+                    headers: headers2
+                });
 
                 if (!tagResponse.ok) {
                     throw new Error(`Tag search failed: ${tagResponse.status} ${tagResponse.statusText}`);
@@ -1370,7 +1393,14 @@
     async function updateTagChipColors(tags, searchMode) {
         for (const tagText of tags) {
             try {
-                const response = await fetch(`${API_URL}/images?tags=${tagText}&mode=OR`);
+                const sessionToken = localStorage.getItem('sessionToken');
+                const headers = {};
+                if (sessionToken) {
+                    headers['Authorization'] = `Bearer ${sessionToken}`;
+                }
+                const response = await fetch(`${API_URL}/images?tags=${tagText}&mode=OR`, {
+                    headers: headers
+                });
                 const images = await response.json();
                 const hasMatches = images.length > 0;
                 const imageCount = images.length;
@@ -1642,7 +1672,14 @@
         // Get image count for this tag
         let imageCount = 0;
         try {
-            const response = await fetch(`${API_URL}/images?tags=${text}&mode=OR`);
+            const sessionToken = localStorage.getItem('sessionToken');
+            const headers = {};
+            if (sessionToken) {
+                headers['Authorization'] = `Bearer ${sessionToken}`;
+            }
+            const response = await fetch(`${API_URL}/images?tags=${text}&mode=OR`, {
+                headers: headers
+            });
             const images = await response.json();
             imageCount = images.length;
         } catch (error) {
@@ -2404,6 +2441,12 @@
         // Update header information
         projectDetailName.textContent = `📁 ${project.name}`;
         projectDetailDate.textContent = `📅 Created: ${new Date(project.created_at).toLocaleDateString()}`;
+        if (project.ownership && projectDetailOwner) {
+            projectDetailOwner.textContent = `👤 Created by: ${project.ownership}`;
+            projectDetailOwner.style.display = 'inline';
+        } else if (projectDetailOwner) {
+            projectDetailOwner.style.display = 'none';
+        }
 
         // Generate detailed count with breakdown using the formatting function
         // Pass the project as fallback for existing projects without breakdown data
@@ -2570,7 +2613,14 @@
 
         try {
             // Get all images from API
-            const response = await fetch(`${API_URL}/images`);
+            const sessionToken = localStorage.getItem('sessionToken');
+            const headers = {};
+            if (sessionToken) {
+                headers['Authorization'] = `Bearer ${sessionToken}`;
+            }
+            const response = await fetch(`${API_URL}/images`, {
+                headers: headers
+            });
             if (!response.ok) throw new Error('Failed to fetch images');
             const allImages = await response.json();
 
@@ -2943,7 +2993,14 @@
 
     async function loadProjectsFromAPI() {
         try {
-            const response = await fetch(`${API_URL}/projects`);
+            const sessionToken = localStorage.getItem('sessionToken');
+            const headers = {};
+            if (sessionToken) {
+                headers['Authorization'] = `Bearer ${sessionToken}`;
+            }
+            const response = await fetch(`${API_URL}/projects`, {
+                headers: headers
+            });
             if (response.ok) {
                 projects = await response.json();
                 console.log('Loaded projects from API:', projects.length);
@@ -2969,11 +3026,16 @@
                 projectData.selection_breakdown = breakdown;
             }
 
+            const sessionToken = localStorage.getItem('sessionToken');
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            if (sessionToken) {
+                headers['Authorization'] = `Bearer ${sessionToken}`;
+            }
             const response = await fetch(`${API_URL}/projects`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
                 body: JSON.stringify(projectData)
             });
 
@@ -3178,6 +3240,14 @@
                 countRow.innerHTML = `<strong>📊 Images:</strong> ${project.image_ids.length} images`;
                 detailedInfo.appendChild(countRow);
 
+                // Creator/Owner
+                if (project.ownership) {
+                    const ownerRow = document.createElement('div');
+                    ownerRow.className = 'project-detail-row';
+                    ownerRow.innerHTML = `<strong>👤 Created by:</strong> ${project.ownership}`;
+                    detailedInfo.appendChild(ownerRow);
+                }
+
                 // Email history section
                 const emailSection = document.createElement('div');
                 emailSection.className = 'email-history-section';
@@ -3224,8 +3294,15 @@
                 const date = new Date(project.created_at);
                 createdDate.textContent = `Created ${date.toLocaleDateString()} at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 
+                const creatorEmail = document.createElement('span');
+                creatorEmail.className = 'project-creator-email';
+                creatorEmail.textContent = project.ownership ? `by ${project.ownership}` : '';
+
                 projectMeta.appendChild(imageCount);
                 projectMeta.appendChild(createdDate);
+                if (project.ownership) {
+                    projectMeta.appendChild(creatorEmail);
+                }
                 titleSection.appendChild(projectTitle);
                 titleSection.appendChild(projectMeta);
             }
@@ -3264,7 +3341,14 @@
 
                 // Get image data for this project
                 try {
-                    const response = await fetch(`${API_URL}/images`);
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    const headers = {};
+                    if (sessionToken) {
+                        headers['Authorization'] = `Bearer ${sessionToken}`;
+                    }
+                    const response = await fetch(`${API_URL}/images`, {
+                        headers: headers
+                    });
                     const allImages = await response.json();
                     const projectImageData = allImages.filter(img => project.image_ids.includes(img.id));
 
@@ -4032,11 +4116,16 @@
         console.log(`Making PUT request to: ${API_URL}/images/${imageId}/tags`);
 
         try {
+            const sessionToken = localStorage.getItem('sessionToken');
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            if (sessionToken) {
+                headers['Authorization'] = `Bearer ${sessionToken}`;
+            }
             const response = await fetch(`${API_URL}/images/${imageId}/tags`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
                 body: JSON.stringify({ tags: tags })
             });
 
@@ -4081,15 +4170,22 @@
             console.log(`Deleting ${allSelectedIds.length} images:`, allSelectedIds);
 
             // Delete each image
+            const sessionToken = localStorage.getItem('sessionToken');
+            const headers = {};
+            if (sessionToken) {
+                headers['Authorization'] = `Bearer ${sessionToken}`;
+            }
             for (const imageId of allSelectedIds) {
                 const response = await fetch(`${API_URL}/images/${imageId}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: headers
                 });
 
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error(`Failed to delete image ${imageId}:`, errorText);
-                    throw new Error(`Failed to delete image ${imageId}: ${response.status} ${response.statusText}`);
+                    console.error(`Response status: ${response.status}, Status text: ${response.statusText}`);
+                    throw new Error(`Failed to delete image ${imageId}: ${response.status} ${response.statusText} - ${errorText}`);
                 }
 
                 console.log(`Successfully deleted image ${imageId}`);
@@ -4350,8 +4446,15 @@
         loadingOverlay.classList.remove('is-hidden');
 
         try {
+            const sessionToken = localStorage.getItem('sessionToken');
+            const headers = {};
+            if (sessionToken) {
+                headers['Authorization'] = `Bearer ${sessionToken}`;
+            }
+            
             const response = await fetch(`${API_URL}/upload`, {
                 method: 'POST',
+                headers: headers,
                 body: formData
             });
 
@@ -4371,6 +4474,12 @@
                 }
             });
             saveTagCreationOrder();
+
+            // Clear the upload form
+            clearUploadUI();
+            
+            // Reload images to show the newly uploaded ones
+            await displayLibraryImages();
 
             // On success, show the custom confirmation dialog
             confirmModal.classList.remove('is-hidden');

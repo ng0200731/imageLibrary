@@ -16,6 +16,7 @@ function setupDatabase() {
             remark TEXT,
             brand TEXT,
             color TEXT,
+            ownership TEXT DEFAULT 'eric.brilliant@gmail.com',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS tags (
@@ -33,6 +34,7 @@ function setupDatabase() {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             image_ids TEXT NOT NULL,
+            ownership TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
     `);

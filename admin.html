@@ -96,23 +96,6 @@
       color: #721c24;
     }
     
-    .role-badge {
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: bold;
-    }
-    
-    .role-admin {
-      background: #d1ecf1;
-      color: #0c5460;
-    }
-    
-    .role-user {
-      background: #e2e3e5;
-      color: #383d41;
-    }
-    
     .approve-button {
       background: #28a745;
       color: white;
@@ -186,7 +169,6 @@
             <tr>
               <th>Email</th>
               <th>Status</th>
-              <th>Role</th>
               <th>Registration Date</th>
               <th>Last Login</th>
               <th>Actions</th>
@@ -268,57 +250,17 @@
         const row = document.createElement('tr');
         
         const statusClass = `status-${user.status}`;
-        const roleClass = `role-${user.role}`;
         
         row.innerHTML = `
           <td>${user.email}</td>
           <td><span class="status-badge ${statusClass}">${user.status}</span></td>
-          <td><span class="role-badge ${roleClass}">${user.role}</span></td>
           <td>${formatDate(user.created_at)}</td>
           <td>${formatDate(user.last_login)}</td>
-          <td>
-            ${user.status === 'pending' ? 
-              `<button class="approve-button" onclick="approveUser(${user.id})">Approve</button>` : 
-              '-'
-            }
-          </td>
+          <td>-</td>
         `;
         
         usersTbody.appendChild(row);
       });
-    }
-    
-    // Approve user
-    async function approveUser(userId) {
-      const sessionToken = localStorage.getItem('sessionToken');
-      
-      if (!sessionToken) {
-        window.location.href = '/login.html';
-        return;
-      }
-      
-      try {
-        const response = await fetch(`${API_URL}/admin/users/${userId}/approve`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${sessionToken}` }
-        });
-        
-        if (response.status === 401 || response.status === 403) {
-          window.location.href = '/login.html';
-          return;
-        }
-        
-        if (!response.ok) {
-          throw new Error('Failed to approve user');
-        }
-        
-        showMessage('User approved successfully!');
-        loadUsers(); // Reload users
-        
-      } catch (error) {
-        console.error('Error approving user:', error);
-        showMessage('Failed to approve user', 'error');
-      }
     }
     
     // Logout function
@@ -346,7 +288,6 @@
     }
 
     // Make functions globally available
-    window.approveUser = approveUser;
     window.logout = logout;
 
     // Load users on page load

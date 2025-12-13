@@ -49,6 +49,48 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
+// --- Helper Functions ---
+
+// Get user email, role, and level from session token
+function getUserFromSession(req) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return null;
+    }
+    
+        const sessionToken = authHeader.substring(7);
+        try {
+            const session = db.prepare(`
+                SELECT u.email, u.role, COALESCE(u.level, 1) as level
+                FROM login_sessions s
+                JOIN users u ON s.user_id = u.id
+                WHERE s.session_token = ? AND s.expires_at > datetime('now')
+            `).get(sessionToken);
+            
+            if (!session) {
+                return null;
+            }
+            
+            const userLevel = parseInt(session.level) || 1;
+            console.log(`getUserFromSession - Email: ${session.email}, Role: ${session.role}, Level (raw): ${session.level}, Level (parsed): ${userLevel}`);
+            
+            return { 
+                email: session.email, 
+                role: session.role, 
+                level: userLevel
+            };
+        } catch (err) {
+            console.error('Error getting user from session:', err);
+            return null;
+        }
+}
+
+// Get user email from session token (for backward compatibility)
+function getUserEmailFromSession(req) {
+    const user = getUserFromSession(req);
+    return user ? user.email : null;
+}
+
 // --- API Endpoints ---
 
 // 1. Upload Images
@@ -98,10 +140,16 @@ app.post('/upload', upload.array('images'), (req, res) => {
 
     const { metadata, regularTags } = extractMetadata(tags);
 
+    // Get user email from session for ownership
+    const userEmail = getUserEmailFromSession(req);
+    if (!userEmail) {
+        return res.status(401).send('Authentication required');
+    }
+
     // Prepare all statements once, outside the transaction
     const insertImage = db.prepare(`
-        INSERT INTO images (filepath, book, page, row, column, type, material, dimension, remark, brand, color, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        INSERT INTO images (filepath, book, page, row, column, type, material, dimension, remark, brand, color, ownership, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     `);
     const insertTag = db.prepare('INSERT OR IGNORE INTO tags (name) VALUES (?)');
     const getTagId = db.prepare('SELECT id FROM tags WHERE name = ?');
@@ -131,7 +179,8 @@ app.post('/upload', upload.array('images'), (req, res) => {
                         metadata.dimension,
                         metadata.remark,
                         metadata.brand,
-                        metadata.color
+                        metadata.color,
+                        userEmail
                     );
                     break; // Success, exit the retry loop
                 } catch (err) {
@@ -203,34 +252,71 @@ app.get('/images', (req, res) => {
     const tags = req.query.tags ? req.query.tags.split(',').filter(t => t) : [];
     const mode = req.query.mode || 'OR';
 
+    // Get user from session for filtering
+    const user = getUserFromSession(req);
+    if (!user) {
+        return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const userEmail = user.email;
+    const isAdmin = user.role === 'admin';
+
     try {
+        const userLevel = parseInt(user.level) || 1;
         let images;
 
         if (tags.length === 0) {
-            images = db.prepare('SELECT * FROM images').all();
+            // Level 3 can see all images, level 1 only see their own
+            if (userLevel === 3) {
+                images = db.prepare('SELECT * FROM images').all();
+            } else {
+                images = db.prepare('SELECT * FROM images WHERE ownership = ?').all(userEmail);
+            }
         } else {
             const placeholders = tags.map(() => '?').join(',');
             let query;
             let params;
 
             if (mode.toUpperCase() === 'AND') {
-                query = `
-                    SELECT i.* FROM images i
-                    JOIN image_tags it ON i.id = it.image_id
-                    JOIN tags t ON it.tag_id = t.id
-                    WHERE t.name IN (${placeholders})
-                    GROUP BY i.id
-                    HAVING COUNT(DISTINCT t.name) = ?
-                `;
-                params = [...tags, tags.length];
+                if (userLevel === 3) {
+                    query = `
+                        SELECT i.* FROM images i
+                        JOIN image_tags it ON i.id = it.image_id
+                        JOIN tags t ON it.tag_id = t.id
+                        WHERE t.name IN (${placeholders})
+                        GROUP BY i.id
+                        HAVING COUNT(DISTINCT t.name) = ?
+                    `;
+                    params = [...tags, tags.length];
+                } else {
+                    query = `
+                        SELECT i.* FROM images i
+                        JOIN image_tags it ON i.id = it.image_id
+                        JOIN tags t ON it.tag_id = t.id
+                        WHERE i.ownership = ? AND t.name IN (${placeholders})
+                        GROUP BY i.id
+                        HAVING COUNT(DISTINCT t.name) = ?
+                    `;
+                    params = [userEmail, ...tags, tags.length];
+                }
             } else { // OR
-                query = `
-                    SELECT DISTINCT i.* FROM images i
-                    JOIN image_tags it ON i.id = it.image_id
-                    JOIN tags t ON it.tag_id = t.id
-                    WHERE t.name IN (${placeholders})
-                `;
-                params = tags;
+                if (userLevel === 3) {
+                    query = `
+                        SELECT DISTINCT i.* FROM images i
+                        JOIN image_tags it ON i.id = it.image_id
+                        JOIN tags t ON it.tag_id = t.id
+                        WHERE t.name IN (${placeholders})
+                    `;
+                    params = tags;
+                } else {
+                    query = `
+                        SELECT DISTINCT i.* FROM images i
+                        JOIN image_tags it ON i.id = it.image_id
+                        JOIN tags t ON it.tag_id = t.id
+                        WHERE i.ownership = ? AND t.name IN (${placeholders})
+                    `;
+                    params = [userEmail, ...tags];
+                }
             }
             images = db.prepare(query).all(params);
         }
@@ -300,7 +386,23 @@ app.put('/images/:id/tags', (req, res) => {
         return res.status(400).send('Tags must be an array');
     }
 
+    // Get user from session for ownership check
+    const user = getUserFromSession(req);
+    if (!user) {
+        return res.status(401).send('Authentication required');
+    }
+
     try {
+        // Verify image ownership (level 3 can modify any image, level 1 can only modify their own)
+        const image = db.prepare('SELECT ownership FROM images WHERE id = ?').get(imageId);
+        if (!image) {
+            return res.status(404).send('Image not found');
+        }
+        const userLevel = parseInt(user.level) || 1;
+        if (userLevel !== 3 && image.ownership !== user.email) {
+            return res.status(403).send('You do not have permission to modify this image');
+        }
+
         // Start transaction
         const transaction = db.transaction(() => {
             // Remove all existing tags for this image
@@ -350,7 +452,20 @@ app.put('/images/:id/tags', (req, res) => {
 // Get all projects
 app.get('/projects', (req, res) => {
     try {
-        const projects = db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
+        // Get user from session for filtering
+        const user = getUserFromSession(req);
+        if (!user) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+
+        const userLevel = parseInt(user.level) || 1;
+        let projects;
+        // Level 3 (admin) can see all projects, Level 1 can only see their own
+        if (userLevel === 3) {
+            projects = db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
+        } else {
+            projects = db.prepare('SELECT * FROM projects WHERE ownership = ? ORDER BY created_at DESC').all(user.email);
+        }
 
         // Parse image_ids for each project (handle different formats)
         const projectsWithParsedIds = projects.map(project => {
@@ -388,19 +503,27 @@ app.get('/projects', (req, res) => {
 // Create a new project
 app.post('/projects', (req, res) => {
     try {
+        // Get user from session for ownership
+        const user = getUserFromSession(req);
+        if (!user) {
+            return res.status(401).send('Authentication required');
+        }
+
         const { name, image_ids } = req.body;
 
         if (!name || !image_ids || !Array.isArray(image_ids)) {
             return res.status(400).send('Project name and image_ids array are required');
         }
 
-        const stmt = db.prepare('INSERT INTO projects (name, image_ids) VALUES (?, ?)');
-        const result = stmt.run(name, JSON.stringify(image_ids));
+        // Set ownership to creator's email
+        const stmt = db.prepare('INSERT INTO projects (name, image_ids, ownership) VALUES (?, ?, ?)');
+        const result = stmt.run(name, JSON.stringify(image_ids), user.email);
 
         const newProject = {
             id: result.lastInsertRowid,
             name: name,
             image_ids: image_ids,
+            ownership: user.email,
             created_at: new Date().toISOString()
         };
 
@@ -414,10 +537,27 @@ app.post('/projects', (req, res) => {
 // Delete a project
 app.delete('/projects/:id', (req, res) => {
     try {
+        // Get user from session for ownership check
+        const user = getUserFromSession(req);
+        if (!user) {
+            return res.status(401).send('Authentication required');
+        }
+
         const projectId = parseInt(req.params.id);
 
         if (isNaN(projectId)) {
             return res.status(400).send('Invalid project ID');
+        }
+
+        // Check project ownership (level 3 can delete any, level 1 can only delete their own)
+        const project = db.prepare('SELECT ownership FROM projects WHERE id = ?').get(projectId);
+        if (!project) {
+            return res.status(404).send('Project not found');
+        }
+
+        const userLevel = parseInt(user.level) || 1;
+        if (userLevel !== 3 && project.ownership !== user.email) {
+            return res.status(403).send('You do not have permission to delete this project');
         }
 
         const stmt = db.prepare('DELETE FROM projects WHERE id = ?');
@@ -443,13 +583,61 @@ app.delete('/images/:id', (req, res) => {
             return res.status(400).send('Invalid image ID');
         }
 
-        // Get image filepath before deletion for file cleanup
-        const imageStmt = db.prepare('SELECT filepath FROM images WHERE id = ?');
+        // Get user from session for ownership check
+        const user = getUserFromSession(req);
+        if (!user) {
+            console.error('Delete image: No user found in session');
+            return res.status(401).send('Authentication required');
+        }
+
+        console.log(`Delete image request - User: ${user.email}, Role: ${user.role}, Level from session: ${user.level} (type: ${typeof user.level})`);
+
+        // Get user's actual level from database (in case session is stale)
+        const userFromDb = db.prepare('SELECT level, role FROM users WHERE email = ?').get(user.email);
+        if (!userFromDb) {
+            console.error(`Delete image: User ${user.email} not found in database`);
+            return res.status(401).send('User not found');
+        }
+        
+        const actualUserLevel = parseInt(userFromDb.level) || 1;
+        const isAdmin = userFromDb.role === 'admin';
+        
+        console.log(`Delete image - User from DB: level=${actualUserLevel} (raw: ${userFromDb.level}), role=${userFromDb.role}, isAdmin=${isAdmin}`);
+
+        // Get image filepath and ownership before deletion for file cleanup
+        const imageStmt = db.prepare('SELECT filepath, ownership FROM images WHERE id = ?');
         const image = imageStmt.get(imageId);
 
         if (!image) {
+            console.error(`Delete image: Image ${imageId} not found`);
             return res.status(404).send('Image not found');
         }
+
+        // Verify ownership (level 3 OR admin role can delete any image, level 1 can only delete their own)
+        console.log(`Delete image check - Image ID: ${imageId}, User: ${user.email}, User Level: ${actualUserLevel} (type: ${typeof actualUserLevel}), isAdmin: ${isAdmin}, Image owner: ${image.ownership}`);
+        
+        // SIMPLIFIED: Level 3 OR admin role can delete ANY image, level 1 can only delete their own
+        let hasPermission = false;
+        
+        if (actualUserLevel === 3) {
+            hasPermission = true;
+            console.log(`✅ Permission granted - User is level 3, can delete ANY image`);
+        } else if (isAdmin) {
+            hasPermission = true;
+            console.log(`✅ Permission granted - User is admin, can delete ANY image`);
+        } else if (image.ownership === user.email) {
+            hasPermission = true;
+            console.log(`✅ Permission granted - User owns this image`);
+        } else {
+            hasPermission = false;
+            console.log(`❌ Permission denied - User level ${actualUserLevel} cannot delete image owned by ${image.ownership}`);
+        }
+        
+        if (!hasPermission) {
+            return res.status(403).send('You do not have permission to delete this image');
+        }
+        
+        console.log(`✅ Proceeding with image deletion...`);
 
         // Start transaction to delete image and related data
         const transaction = db.transaction(() => {
@@ -513,6 +701,12 @@ app.post('/projects/:id/share', async (req, res) => {
         return res.status(400).send('Recipient email is required');
     }
 
+    // Get user email from session for ownership check
+    const userEmail = getUserEmailFromSession(req);
+    if (!userEmail) {
+        return res.status(401).send('Authentication required');
+    }
+
     try {
         // Get project details
         const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
@@ -530,11 +724,11 @@ app.post('/projects/:id/share', async (req, res) => {
             FROM images i
             LEFT JOIN image_tags it ON i.id = it.image_id
             LEFT JOIN tags t ON it.tag_id = t.id
-            WHERE i.id IN (${placeholders})
+            WHERE i.id IN (${placeholders}) AND i.ownership = ?
             GROUP BY i.id
         `;
 
-        const projectImages = db.prepare(query).all(...imageIds);
+        const projectImages = db.prepare(query).all(...imageIds, userEmail);
 
         // Format images data for email
         const imagesWithTags = projectImages.map(img => ({
@@ -620,13 +814,15 @@ app.post('/auth/send-code', async (req, res) => {
         let userStatus = 'existing';
 
         if (!user) {
-            // Create new user with pending status
-            const stmt = db.prepare('INSERT INTO users (email, status, role) VALUES (?, ?, ?)');
-            const result = stmt.run(email, 'pending', 'user');
-            user = { id: result.lastInsertRowid, email, status: 'pending', role: 'user' };
+            // Create new user with approved status (no authorization needed - direct use)
+            const stmt = db.prepare('INSERT INTO users (email, status, role, approved_at) VALUES (?, ?, ?, datetime(\'now\'))');
+            const result = stmt.run(email, 'approved', 'user');
+            user = { id: result.lastInsertRowid, email, status: 'approved', role: 'user' };
             userStatus = 'new';
-        } else if (user.status === 'pending') {
-            userStatus = 'pending';
+        } else if (user.status === 'pending' || !user.status) {
+            // Auto-approve any existing pending users (no authorization needed - direct use)
+            db.prepare('UPDATE users SET status = ?, approved_at = datetime(\'now\') WHERE id = ?').run('approved', user.id);
+            user.status = 'approved';
         }
 
         // Generate verification code
@@ -648,17 +844,7 @@ app.post('/auth/send-code', async (req, res) => {
             return res.status(500).json({ error: 'Failed to send verification email. Please try again.' });
         }
 
-        let message;
-        if (userStatus === 'new') {
-            message = 'Verification code sent. Your application is under review.';
-        } else if (userStatus === 'pending') {
-            message = 'Verification code sent. Your application is still under review.';
-        } else if (user.status === 'approved') {
-            message = 'Verification code sent to your email.';
-        } else {
-            message = 'Your account is not approved for access.';
-        }
-
+        let message = 'Verification code sent to your email.';
         res.json({ message, userStatus: user.status });
 
     } catch (error) {
@@ -687,15 +873,17 @@ app.post('/auth/verify-code', async (req, res) => {
             return res.status(400).json({ error: 'Invalid or expired verification code' });
         }
 
-        // Check user status
+        // Check user exists
         const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
 
         if (!user) {
             return res.status(400).json({ error: 'User not found' });
         }
 
-        if (user.status !== 'approved') {
-            return res.status(403).json({ error: 'Account not approved for access' });
+        // Auto-approve if user is pending (no authorization needed)
+        if (user.status === 'pending') {
+            db.prepare('UPDATE users SET status = ?, approved_at = datetime(\'now\') WHERE id = ?').run('approved', user.id);
+            user.status = 'approved';
         }
 
         // Mark code as used
@@ -898,30 +1086,12 @@ async function sendVerificationEmail(email, code, userStatus) {
 
     let subject, content;
 
-    if (userStatus === 'new') {
-        subject = 'Registration of Image Library';
-        content = `
-            <h2>Welcome to Image Library</h2>
-            <p>Your verification code is: <strong>${code}</strong></p>
-            <p>We are reviewing your application, and once it is approved, we will send email to update.</p>
-            <p>This code expires in 10 minutes.</p>
-        `;
-    } else if (userStatus === 'pending') {
-        subject = 'Your application of the image library is still under reviewing';
-        content = `
-            <h2>Application Under Review</h2>
-            <p>Your verification code is: <strong>${code}</strong></p>
-            <p>We are reviewing your application, and once it is approved, we will send email to update.</p>
-            <p>This code expires in 10 minutes.</p>
-        `;
-    } else {
-        subject = 'Image Library - Verification Code';
-        content = `
-            <h2>Login Verification</h2>
-            <p>Your verification code is: <strong>${code}</strong></p>
-            <p>This code expires in 10 minutes.</p>
-        `;
-    }
+    subject = 'Image Library - Verification Code';
+    content = `
+        <h2>Login Verification</h2>
+        <p>Your verification code is: <strong>${code}</strong></p>
+        <p>This code expires in 10 minutes.</p>
+    `;
 
     const mailOptions = {
         from: 'eric.brilliant@gmail.com',

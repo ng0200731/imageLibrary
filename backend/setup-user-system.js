@@ -11,6 +11,7 @@ function setupUserSystem() {
             email TEXT NOT NULL UNIQUE,
             status TEXT NOT NULL DEFAULT 'pending',
             role TEXT NOT NULL DEFAULT 'user',
+            level INTEGER DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             approved_at DATETIME,
             last_login DATETIME
@@ -47,18 +48,18 @@ function setupUserSystem() {
     
     if (!existingAdmin) {
         db.prepare(`
-            INSERT INTO users (email, status, role, approved_at) 
-            VALUES (?, 'approved', 'admin', datetime('now'))
+            INSERT INTO users (email, status, role, level, approved_at) 
+            VALUES (?, 'approved', 'admin', 3, datetime('now'))
         `).run(adminEmail);
-        console.log(`✓ Created admin user: ${adminEmail}`);
+        console.log(`✓ Created admin user: ${adminEmail} with level 3`);
     } else {
         // Update existing user to admin if not already
         db.prepare(`
             UPDATE users 
-            SET status = 'approved', role = 'admin', approved_at = datetime('now')
+            SET status = 'approved', role = 'admin', level = 3, approved_at = datetime('now')
             WHERE email = ?
         `).run(adminEmail);
-        console.log(`✓ Updated admin user: ${adminEmail}`);
+        console.log(`✓ Updated admin user: ${adminEmail} to level 3`);
     }
     
     console.log('User management system setup complete!');
