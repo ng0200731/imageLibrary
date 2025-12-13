@@ -40,6 +40,31 @@ app.get('/', (req, res) => {
 const db = new Database('database.sqlite');
 console.log('Connected to the better-sqlite3 database.');
 
+// Verify schema has width and length columns, add them if missing
+try {
+    const tableInfo = db.prepare("PRAGMA table_info(images)").all();
+    const hasWidth = tableInfo.some(col => col.name === 'width');
+    const hasLength = tableInfo.some(col => col.name === 'length');
+    
+    if (!hasWidth) {
+        console.log('Adding width column to images table...');
+        db.exec('ALTER TABLE images ADD COLUMN width TEXT');
+        console.log('✅ width column added');
+    }
+    
+    if (!hasLength) {
+        console.log('Adding length column to images table...');
+        db.exec('ALTER TABLE images ADD COLUMN length TEXT');
+        console.log('✅ length column added');
+    }
+    
+    if (hasWidth && hasLength) {
+        console.log('✅ Database schema verified: width and length columns exist');
+    }
+} catch (err) {
+    console.error('Error checking/updating database schema:', err);
+}
+
 // --- File Upload Setup ---
 const uploadDir = './uploads';
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
@@ -147,11 +172,26 @@ app.post('/upload', upload.array('images'), (req, res) => {
         return res.status(401).send('Authentication required');
     }
 
-    // Prepare all statements once, outside the transaction
-    const insertImage = db.prepare(`
-        INSERT INTO images (filepath, book, page, row, column, type, material, width, length, remark, brand, color, ownership, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    `);
+    // Prepare all statements - prepare them fresh each time to ensure schema is up to date
+    let insertImage;
+    try {
+        insertImage = db.prepare(`
+            INSERT INTO images (filepath, book, page, row, column, type, material, width, length, remark, brand, color, ownership, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        `);
+    } catch (err) {
+        console.error('Error preparing insertImage statement:', err);
+        // Fallback: try without width/length if columns don't exist
+        if (err.message && err.message.includes('no column named width')) {
+            console.log('Width/length columns not found, using dimension fallback');
+            insertImage = db.prepare(`
+                INSERT INTO images (filepath, book, page, row, column, type, material, dimension, remark, brand, color, ownership, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            `);
+        } else {
+            throw err;
+        }
+    }
     const insertTag = db.prepare('INSERT OR IGNORE INTO tags (name) VALUES (?)');
     const getTagId = db.prepare('SELECT id FROM tags WHERE name = ?');
     const linkImageToTag = db.prepare('INSERT INTO image_tags (image_id, tag_id) VALUES (?, ?)');
