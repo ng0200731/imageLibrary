@@ -297,7 +297,8 @@ function generateHtmlContent(projectData, senderMessage) {
                                     <div class="metadata-value">
                                         type: ${metadata.type || 'N/A'}<br>
                                         material: ${metadata.material || 'N/A'}<br>
-                                        dimension: ${metadata.dimension || 'N/A'}
+                                        width: ${metadata.width || 'N/A'}<br>
+                                        length: ${metadata.length || 'N/A'}
                                     </div>
                                 </div>
                                 <div class="metadata-item">
@@ -351,7 +352,8 @@ function extractImageMetadata(image) {
         column: null,
         type: null,
         material: null,
-        dimension: null,
+        width: null,
+        length: null,
         remark: null,
         brand: null,
         color: null
@@ -364,7 +366,8 @@ function extractImageMetadata(image) {
     if (image.column) metadata.column = image.column;
     if (image.type) metadata.type = image.type;
     if (image.material) metadata.material = image.material;
-    if (image.dimension) metadata.dimension = image.dimension;
+    if (image.width) metadata.width = image.width;
+    if (image.length) metadata.length = image.length;
     if (image.remark) metadata.remark = image.remark;
     if (image.brand) metadata.brand = image.brand;
     if (image.color) metadata.color = image.color;
@@ -396,7 +399,7 @@ function getSubjectiveTags(image) {
     }
 
     const subjectiveTags = [];
-    const metadataKeys = ['book', 'page', 'row', 'column', 'type', 'material', 'dimension', 'remark', 'brand', 'color'];
+    const metadataKeys = ['book', 'page', 'row', 'column', 'type', 'material', 'width', 'length', 'remark', 'brand', 'color'];
 
     image.tags.forEach(tag => {
         const colonIndex = tag.indexOf(':');

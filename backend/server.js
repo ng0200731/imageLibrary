@@ -111,7 +111,8 @@ app.post('/upload', upload.array('images'), (req, res) => {
             column: null,
             type: null,
             material: null,
-            dimension: null,
+            width: null,
+            length: null,
             remark: null,
             brand: null,
             color: null
@@ -148,8 +149,8 @@ app.post('/upload', upload.array('images'), (req, res) => {
 
     // Prepare all statements once, outside the transaction
     const insertImage = db.prepare(`
-        INSERT INTO images (filepath, book, page, row, column, type, material, dimension, remark, brand, color, ownership, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        INSERT INTO images (filepath, book, page, row, column, type, material, width, length, remark, brand, color, ownership, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     `);
     const insertTag = db.prepare('INSERT OR IGNORE INTO tags (name) VALUES (?)');
     const getTagId = db.prepare('SELECT id FROM tags WHERE name = ?');
@@ -176,7 +177,8 @@ app.post('/upload', upload.array('images'), (req, res) => {
                         metadata.column,
                         metadata.type,
                         metadata.material,
-                        metadata.dimension,
+                        metadata.width,
+                        metadata.length,
                         metadata.remark,
                         metadata.brand,
                         metadata.color,

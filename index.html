@@ -38,8 +38,13 @@
       <!-- Image Library Page (Default) -->
       <div id="page-library" class="page">
         <header class="content__header">
-          <h1 class="title">Image Library</h1>
-          <div class="legend" style="margin-top:8px;">Solid = Objective, Dashed = Subjective</div>
+          <div class="header-content-wrapper">
+            <div class="header-left">
+              <h1 class="title">Image Library</h1>
+              <div class="legend" style="margin-top:8px;">Solid = Objective, Dashed = Subjective</div>
+            </div>
+            <div id="user-email-display" class="user-email-display"></div>
+          </div>
 
           <!-- Broken Image Notification -->
           <div id="broken-image-notification" class="broken-image-notification hidden">
@@ -87,7 +92,12 @@
       <!-- Upload Image Page -->
       <div id="page-upload" class="page is-hidden">
           <header class="content__header">
-            <h1 class="title">Upload Images</h1>
+            <div class="header-content-wrapper">
+              <div class="header-left">
+                <h1 class="title">Upload Images</h1>
+              </div>
+              <div id="user-email-display-upload" class="user-email-display"></div>
+            </div>
           </header>
           <section class="panel">
             <div id="dropzone" class="upload-area">
@@ -152,7 +162,10 @@
                         material: <input id="obj-material" type="text" placeholder="material:paper" />
                       </label>
                       <label class="tag-input">
-                        dimension: <input id="obj-dimension" type="text" placeholder="dimension:25x30mm" />
+                        width: <input id="obj-width" type="text" placeholder="width:25" class="dimension-field" />
+                      </label>
+                      <label class="tag-input">
+                        length: <input id="obj-length" type="text" placeholder="length:30" class="dimension-field" />
                       </label>
                     </div>
                   </div>
@@ -201,14 +214,19 @@
       <!-- Project Page -->
       <div id="page-project" class="page is-hidden">
         <header class="content__header">
-          <div class="project-header-row">
-            <h1 class="title">Projects</h1>
-            <div class="project-view-toggle">
-              <button id="project-view-toggle-btn" class="button is-small">
-                <span id="toggle-icon">📋</span>
-                <span id="toggle-text">Detailed View</span>
-              </button>
+          <div class="header-content-wrapper">
+            <div class="header-left">
+              <div class="project-header-row">
+                <h1 class="title">Projects</h1>
+                <div class="project-view-toggle">
+                  <button id="project-view-toggle-btn" class="button is-small">
+                    <span id="toggle-icon">📋</span>
+                    <span id="toggle-text">Detailed View</span>
+                  </button>
+                </div>
+              </div>
             </div>
+            <div id="user-email-display-project" class="user-email-display"></div>
           </div>
         </header>
         <section class="panel">
@@ -543,7 +561,8 @@
     const objColumnInput = document.getElementById('obj-column');
     const objTypeInput = document.getElementById('obj-type');
     const objMaterialInput = document.getElementById('obj-material');
-    const objDimensionInput = document.getElementById('obj-dimension');
+    const objWidthInput = document.getElementById('obj-width');
+    const objLengthInput = document.getElementById('obj-length');
     const objRemarkInput = document.getElementById('obj-remark');
     const objBrandInput = document.getElementById('obj-brand');
     const objColorInput = document.getElementById('obj-color');
@@ -1559,7 +1578,8 @@
             columns: ['1', '2', '3', '4'],
             types: ['stamp', 'coin', 'banknote', 'postcard', 'photo', 'document'],
             materials: ['paper', 'metal', 'plastic', 'fabric', 'wood', 'ceramic'],
-            dimensions: ['25x30mm', '15x20mm', '40x25mm', '30x35mm', '20x25mm', '50x30mm'],
+            widths: ['25', '15', '40', '30', '20', '50'],
+            lengths: ['30', '20', '25', '35', '25', '30'],
             remarks: [
                 'excellent condition, rare find',
                 'mint condition, first edition',
@@ -1582,7 +1602,8 @@
         if (objColumnInput) objColumnInput.value = `column:${random(sampleData.columns)}`;
         if (objTypeInput) objTypeInput.value = `type:${random(sampleData.types)}`;
         if (objMaterialInput) objMaterialInput.value = `material:${random(sampleData.materials)}`;
-        if (objDimensionInput) objDimensionInput.value = `dimension:${random(sampleData.dimensions)}`;
+        if (objWidthInput) objWidthInput.value = `width:${random(sampleData.widths)}`;
+        if (objLengthInput) objLengthInput.value = `length:${random(sampleData.lengths)}`;
         if (objRemarkInput) objRemarkInput.value = `remark:${random(sampleData.remarks)}`;
         if (objBrandInput) objBrandInput.value = `brand:${random(sampleData.brands)}`;
         if (objColorInput) objColorInput.value = `color:${random(sampleData.colors)}`;
@@ -3613,6 +3634,9 @@
                 settingsLink.style.display = 'none';
             }
 
+            // Update email display in headers
+            updateUserEmailDisplay();
+
             return true;
 
         } catch (error) {
@@ -3621,6 +3645,23 @@
             window.location.href = '/login.html';
             return false;
         }
+    }
+
+    function updateUserEmailDisplay() {
+        const emailDisplays = [
+            document.getElementById('user-email-display'),
+            document.getElementById('user-email-display-upload'),
+            document.getElementById('user-email-display-project')
+        ];
+
+        const email = currentUser ? currentUser.email : '';
+        
+        emailDisplays.forEach(display => {
+            if (display) {
+                display.textContent = email;
+                display.style.display = email ? 'block' : 'none';
+            }
+        });
     }
 
     function openSettings() {
@@ -3658,6 +3699,9 @@
         // Clear current user
         currentUser = null;
         console.log('👤 Current user cleared');
+
+        // Clear email display
+        updateUserEmailDisplay();
 
         // Redirect to login page
         console.log('🔄 Redirecting to login page...');
@@ -4326,7 +4370,7 @@
     });
 
     // Add event listeners for all objective metadata inputs
-    [objBookInput, objPageInput, objRowInput, objColumnInput, objTypeInput, objMaterialInput, objDimensionInput, objRemarkInput, objBrandInput, objColorInput].forEach(input => {
+    [objBookInput, objPageInput, objRowInput, objColumnInput, objTypeInput, objMaterialInput, objWidthInput, objLengthInput, objRemarkInput, objBrandInput, objColorInput].forEach(input => {
         if (input) {
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === 'Tab' || e.key === ',') {
@@ -4406,7 +4450,7 @@
         objChips.innerHTML = '';
 
         // Clear all objective metadata inputs
-        [objBookInput, objPageInput, objRowInput, objColumnInput, objTypeInput, objMaterialInput, objDimensionInput, objRemarkInput, objBrandInput, objColorInput].forEach(input => {
+        [objBookInput, objPageInput, objRowInput, objColumnInput, objTypeInput, objMaterialInput, objWidthInput, objLengthInput, objRemarkInput, objBrandInput, objColorInput].forEach(input => {
             if (input) input.value = '';
         });
 
@@ -4434,6 +4478,21 @@
 
         if (filesToUpload.length === 0) {
             return alert('Please select images to upload.');
+        }
+
+        // Validate that at least one dimension field (width or length) is filled
+        const widthValue = objWidthInput ? objWidthInput.value.trim() : '';
+        const lengthValue = objLengthInput ? objLengthInput.value.trim() : '';
+        const hasWidthInChips = objTags.some(tag => tag.toLowerCase().startsWith('width:'));
+        const hasLengthInChips = objTags.some(tag => tag.toLowerCase().startsWith('length:'));
+        
+        if (!widthValue && !lengthValue && !hasWidthInChips && !hasLengthInChips) {
+            alert('Please fill in at least one dimension field (width or length) before uploading.');
+            // Focus on width input
+            if (objWidthInput) {
+                objWidthInput.focus();
+            }
+            return;
         }
 
         const formData = new FormData();

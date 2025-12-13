@@ -206,12 +206,38 @@ body {
 .content__header {
   padding: 8px; /* Reduced padding */
   border-bottom: 1px solid #000;
+  position: relative;
+}
+
+.header-content-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.header-left {
+  flex: 1;
 }
 
 .title {
   margin: 0;
   font-size: 16px; /* Reduced */
   font-weight: 600;
+}
+
+.user-email-display {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 14px;
+  color: #666;
+  padding: 4px 8px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  display: none; /* Hidden by default, shown when user is logged in */
+  z-index: 10; /* Ensure it's above other elements */
 }
 
 .panel {
@@ -1927,6 +1953,11 @@ body {
 .metadata-row .tag-input input {
   width: 100%;
   min-width: 80px;
+}
+
+/* Pink background for dimension fields (width and length) */
+.dimension-field {
+  background-color: #ffc0cb !important;
 }
 
 /* Auto Fill Button */
