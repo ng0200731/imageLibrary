@@ -40,11 +40,12 @@ app.get('/', (req, res) => {
 const db = new Database('database.sqlite');
 console.log('Connected to the better-sqlite3 database.');
 
-// Verify schema has width and length columns, add them if missing
+// Verify schema has width, length, and ownership columns, add them if missing
 try {
     const tableInfo = db.prepare("PRAGMA table_info(images)").all();
     const hasWidth = tableInfo.some(col => col.name === 'width');
     const hasLength = tableInfo.some(col => col.name === 'length');
+    const hasOwnership = tableInfo.some(col => col.name === 'ownership');
     
     if (!hasWidth) {
         console.log('Adding width column to images table...');
@@ -58,8 +59,16 @@ try {
         console.log('✅ length column added');
     }
     
-    if (hasWidth && hasLength) {
-        console.log('✅ Database schema verified: width and length columns exist');
+    if (!hasOwnership) {
+        console.log('Adding ownership column to images table...');
+        db.exec("ALTER TABLE images ADD COLUMN ownership TEXT DEFAULT 'eric.brilliant@gmail.com'");
+        // Update existing images to have ownership
+        const updateResult = db.prepare("UPDATE images SET ownership = 'eric.brilliant@gmail.com' WHERE ownership IS NULL OR ownership = ''").run();
+        console.log(`✅ ownership column added, updated ${updateResult.changes} existing images`);
+    }
+    
+    if (hasWidth && hasLength && hasOwnership) {
+        console.log('✅ Database schema verified: width, length, and ownership columns exist');
     }
 } catch (err) {
     console.error('Error checking/updating database schema:', err);
